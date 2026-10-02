@@ -1,0 +1,39 @@
+# =============================================================================
+# agent-toolbox .gitignore
+# =============================================================================
+
+# --- secrets / local machine state (NEVER commit) --------------------------
+.env
+.env.*
+auth.json
+credentials.json
+secrets/
+*.atb-backup.*
+*.pipe
+id_rsa*
+id_ed25519*
+
+# --- tool output (CI intermediates; the update report is committed) --------
+update-check.json
+pr-body.md
+*.log
+*.tmp
+
+# --- editors / OS -----------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# --- python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+
+# --- node ----------------------------------------------------------------
+node_modules/
+
+# --- local resource workdirs (developer scratch) ---------------------------
+/tmp/

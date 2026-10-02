@@ -1,0 +1,50 @@
+# =============================================================================
+# catalog/extensions.yaml
+# -----------------------------------------------------------------------------
+# Browsable reference registry of known Pi extensions (managed + reference-only).
+# Extensions are EXECUTABLE: any source change requires security review.
+# The source of truth is manifest.yaml.
+# =============================================================================
+schema_version: 1
+kind: extension
+
+entries:
+  - id: orca-agent-status
+    name: orca-agent-status
+    scope: global
+    managed: true
+    status: reference
+    executable: true
+    source: github.com/stablyai/orca (orca-managed)
+    summary: Posts agent status snapshots to the Orca runtime.
+    path: ~/.pi/agent/extensions/orca-agent-status.ts
+
+  - id: orca-prefill
+    name: orca-prefill
+    scope: global
+    managed: true
+    status: reference
+    executable: true
+    source: github.com/stablyai/orca (orca-managed)
+    summary: Provides input prefill for the TUI.
+    path: ~/.pi/agent/extensions/orca-prefill.ts
+
+  - id: orca-titlebar-spinner
+    name: orca-titlebar-spinner
+    scope: global
+    managed: true
+    status: reference
+    executable: true
+    source: github.com/stablyai/orca (orca-managed)
+    summary: Renders a titlebar spinner in the TUI.
+    path: ~/.pi/agent/extensions/orca-titlebar-spinner.ts
+
+  - id: rtk
+    name: rtk
+    scope: global
+    managed: true
+    status: reference
+    executable: true
+    source: local (authored)
+    summary: Rewrites bash commands to use `rtk` for token savings.
+    path: ~/.pi/agent/extensions/rtk.ts

@@ -1,0 +1,675 @@
+schema_version: 1
+toolbox:
+  name: agent-toolbox
+  owner: DwainYu
+  primary_runtime: pi
+  description: Personal Agent resource registry and configuration manager
+resources:
+  skills:
+  - id: browser-skill
+    name: browser-skill
+    kind: skill
+    scope: global
+    description: Automate the user's logged-in Chromium browser (visit/read/fill/scrape/
+      click/regression-test) via the `bsk` CLI and a browser extension.
+    source:
+      type: manual
+      url: ''
+      ref: ''
+    resolution:
+      version: bundled
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: false
+      review_required: true
+    install:
+      method: manual
+      path: ~/.pi/agent/skills/browser-skill
+    tags:
+    - browser
+    - bsk
+    - automation
+    notes: Installed with a `bundled` source marker (.bsk-source sha256 cba2fdf48df55f...).
+      Managed by the bsk/browser tooling, not by this toolbox. V1 = reference-only;
+      no resolvable upstream to diff.
+  - id: open-code-review
+    name: open-code-review
+    kind: skill
+    scope: global
+    description: AI-powered code review on Git changes via the `ocr` CLI from alibaba/open-code-review.
+      Produces line-level review comments.
+    source:
+      type: github
+      url: https://github.com/alibaba/open-code-review
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: false
+      review_required: true
+    install:
+      method: manual
+      path: ~/.pi/agent/skills/open-code-review
+    tags:
+    - code-review
+    - ocr
+    - grpc
+    notes: Skill ships alongside the ocr CLI (npm @alibaba-group/open-code-review,
+      v1.12.9 bccbc15). No local commit marker for the SKILL.md itself, so upstream
+      diffing is not reliable in V1 -> update policy manual.
+  - id: open-code-review-delegate
+    name: open-code-review-delegate
+    kind: skill
+    scope: global
+    description: Delegation mode for open-code-review where the host agent performs
+      the review itself, using ocr only for file selection / rule resolution.
+    source:
+      type: github
+      url: https://github.com/alibaba/open-code-review
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: false
+      review_required: true
+    install:
+      method: manual
+      path: ~/.pi/agent/skills/open-code-review-delegate
+    tags:
+    - code-review
+    - delegate
+    notes: Same upstream family as open-code-review; no local commit marker -> manual
+      update policy.
+  - id: orca-cli
+    name: orca-cli
+    kind: skill
+    scope: global
+    description: Operate Orca-managed worktrees, terminals, repos, automations, artifacts
+      and Orca's embedded browser through the `orca` CLI.
+    source:
+      type: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: false
+      review_required: true
+    install:
+      method: orca-managed
+      path: ~/.pi/agent/skills/orca-cli
+    tags:
+    - orca
+    - worktree
+    - cli
+    notes: 'Installed by the Orca CLI (source: stablyai/orca, skillPath skills/orca-cli/SKILL.md,
+      skillFolderHash 572f7952...). The `orca` binary is the updater -> manual policy
+      for the toolbox.'
+  - id: orchestration
+    name: orchestration
+    kind: skill
+    scope: global
+    description: 'Coordinate supervised Orca workers: threaded messages, task DAGs,
+      decision gates, coordinator loops, and decomposing work across agents.'
+    source:
+      type: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: false
+      review_required: true
+    install:
+      method: orca-managed
+      path: ~/.pi/agent/skills/orchestration
+    tags:
+    - orca
+    - orchestration
+    - supervisor
+    notes: 'Installed by the Orca CLI (source: stablyai/orca, skillPath skills/orchestration/SKILL.md,
+      skillFolderHash b0cd1d58...).'
+  mcp:
+  - id: exa
+    name: exa
+    kind: mcp
+    scope: global
+    description: Web search / current information via the hosted Exa MCP endpoint.
+    source:
+      type: url
+      url: https://mcp.exa.ai/mcp
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    runtime:
+      transport: http
+      url: https://mcp.exa.ai/mcp
+    install:
+      method: mcp-config
+      path: ~/.pi/agent/mcp.json
+    tags:
+    - mcp
+    - search
+    - exa
+    notes: Hosted (URL) MCP endpoint. Version is managed by the provider; there is
+      no local ref to diff, so updates are reported only on command/url/args change.
+      Does not require a secret in this config.
+  - id: context7
+    name: context7
+    kind: mcp
+    scope: global
+    description: Library / framework documentation MCP via the hosted Context7 endpoint.
+    source:
+      type: url
+      url: https://mcp.context7.com/mcp
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    runtime:
+      transport: http
+      url: https://mcp.context7.com/mcp
+    install:
+      method: mcp-config
+      path: ~/.pi/agent/mcp.json
+    tags:
+    - mcp
+    - docs
+    - context7
+    notes: Hosted URL endpoint; no local ref to diff.
+  - id: searchcode
+    name: searchcode
+    kind: mcp
+    scope: global
+    description: Search / analyze public git repositories via the hosted searchcode
+      MCP.
+    source:
+      type: url
+      url: https://api.searchcode.com/v1/mcp
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    runtime:
+      transport: http
+      url: https://api.searchcode.com/v1/mcp
+    install:
+      method: mcp-config
+      path: ~/.pi/agent/mcp.json
+    tags:
+    - mcp
+    - search
+    - code
+    notes: Hosted URL endpoint; no local ref to diff.
+  - id: codegraph
+    name: codegraph
+    kind: mcp
+    scope: project
+    description: Code navigation MCP (call chains, blast radius, related symbols)
+      served over stdio by the `codegraph` CLI.
+    projects:
+    - agent-engineering-lab
+    - tft-training-log
+    - hengguang-ai-platform-demo
+    - md-content-publisher
+    source:
+      type: npm
+      package: '@colbymchenry/codegraph'
+      ref: 1.6.0
+    resolution:
+      version: 1.6.0
+      commit: ''
+      checked_at: '2026-10-02'
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    runtime:
+      transport: stdio
+      command: codegraph
+      args:
+      - serve
+      - --mcp
+    install:
+      method: mcp-config
+      path: .pi/mcp.json
+    tags:
+    - mcp
+    - codegraph
+    - stdio
+    notes: stdio MCP installed into each project's .pi/mcp.json. Upstream is the npm
+      package @colbymchenry/codegraph -> weekly check via `npm view`.
+  extensions:
+  - id: orca-agent-status
+    name: orca-agent-status
+    kind: extension
+    scope: global
+    description: Orca-managed Pi extension that posts agent status snapshots.
+    source:
+      type: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: orca-managed
+      path: ~/.pi/agent/extensions/orca-agent-status.ts
+    tags:
+    - orca
+    - extension
+    - status
+    notes: Marked `@orca-managed-pi-extension`. Installed/updated by the Orca CLI;
+      no local upstream commit to diff -> manual policy.
+  - id: orca-prefill
+    name: orca-prefill
+    kind: extension
+    scope: global
+    description: Orca-managed Pi extension that provides input prefill.
+    source:
+      type: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: orca-managed
+      path: ~/.pi/agent/extensions/orca-prefill.ts
+    tags:
+    - orca
+    - extension
+    - prefill
+    notes: Orca-managed extension; manual policy.
+  - id: orca-titlebar-spinner
+    name: orca-titlebar-spinner
+    kind: extension
+    scope: global
+    description: Orca-managed Pi extension that renders a titlebar spinner.
+    source:
+      type: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: orca-managed
+      path: ~/.pi/agent/extensions/orca-titlebar-spinner.ts
+    tags:
+    - orca
+    - extension
+    - tui
+    notes: Orca-managed extension; manual policy.
+  - id: rtk
+    name: rtk
+    kind: extension
+    scope: global
+    description: Thin delegating Pi extension that rewrites bash commands to use `rtk`
+      for token savings; all rewrite logic lives in the `rtk` Rust binary.
+    source:
+      type: local
+      path: ~/.pi/agent/extensions/rtk.ts
+      ref: ''
+    resolution:
+      version: ''
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: manual
+      path: ~/.pi/agent/extensions/rtk.ts
+    tags:
+    - rtk
+    - extension
+    - rewrite
+    notes: Local, authored extension requiring `rtk >= 0.23.0` in PATH. Not vendored
+      into resources/ in V1; reference-only here.
+  packages:
+  - id: pi-web-access
+    name: pi-web-access
+    kind: package
+    scope: global
+    description: Pi package providing web access capabilities.
+    source:
+      type: npm
+      package: pi-web-access
+      ref: 0.35.0
+    resolution:
+      version: 0.35.0
+      commit: ''
+      checked_at: '2026-10-02'
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - web
+    notes: Global pi package; weekly update check.
+  - id: pi-hashline
+    name: pi-hashline
+    kind: package
+    scope: global
+    description: Pi package supplying the hashline edit format used by this agent.
+    source:
+      type: npm
+      package: pi-hashline
+      ref: 0.2.0
+    resolution:
+      version: 0.2.0
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - hashline
+    notes: Global pi package; weekly update check.
+  - id: pi-subagents
+    name: pi-subagents
+    kind: package
+    scope: global
+    description: Pi package providing subagent / delegation support.
+    source:
+      type: npm
+      package: pi-subagents
+      ref: 0.74.0
+    resolution:
+      version: 0.74.0
+      commit: ''
+      checked_at: '2026-10-02'
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - subagents
+    notes: Global pi package; weekly update check.
+  - id: pi-mcp-adapter
+    name: pi-mcp-adapter
+    kind: package
+    scope: global
+    description: Pi package providing MCP adapter integration.
+    source:
+      type: npm
+      package: pi-mcp-adapter
+      ref: 5.0.0
+    resolution:
+      version: 5.0.0
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - mcp
+    notes: Global pi package; weekly update check.
+  - id: pi-themes-bundle
+    name: pi-themes-bundle
+    kind: package
+    scope: global
+    description: Pi package bundling themes for the TUI.
+    source:
+      type: npm
+      package: '@firstpick/pi-themes-bundle'
+      ref: 0.1.6
+    resolution:
+      version: 0.1.6
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - themes
+    notes: Global pi package; weekly update check.
+  - id: pi-atelier
+    name: pi-atelier
+    kind: package
+    scope: global
+    description: Pi Atelier package (tooling / UI resources).
+    source:
+      type: npm
+      package: pi-atelier
+      ref: 0.13.0
+    resolution:
+      version: 0.13.0
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - atelier
+    notes: Global pi package; weekly update check.
+  - id: pi-web
+    name: pi-web
+    kind: package
+    scope: global
+    description: Core Pi web package (`@agegr/pi-web`).
+    source:
+      type: npm
+      package: '@agegr/pi-web'
+      ref: 0.9.3
+    resolution:
+      version: 0.9.3
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - web
+    - core
+    notes: Global pi package; weekly update check.
+  - id: pi-hermes-memory
+    name: pi-hermes-memory
+    kind: package
+    scope: global
+    description: Pi package providing persistent memory across sessions.
+    source:
+      type: npm
+      package: pi-hermes-memory
+      ref: 0.9.9
+    resolution:
+      version: 0.9.9
+      commit: ''
+      checked_at: 2026-10-02
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: pi-install
+      path: ~/.pi/agent/npm
+    tags:
+    - pi
+    - package
+    - memory
+    notes: Global pi package; weekly update check.
+  prompts: []
+  themes: []
+profiles:
+  global:
+    path: ~/.pi/agent
+    config:
+      settings: profiles/global/settings.json
+      mcp: profiles/global/mcp.json
+      skills: ~/.pi/agent/skills
+      extensions: ~/.pi/agent/extensions
+  projects:
+    agent-engineering-lab:
+      repo: DwainYu/agent-engineering-lab
+      path: ~/projects/agent-engineering-lab
+      config:
+        settings: profiles/projects/agent-engineering-lab/settings.json
+        mcp: profiles/projects/agent-engineering-lab/mcp.json
+    tft-training-log:
+      repo: DwainYu/tft-training-log
+      path: ~/projects/tft-training-log
+      config:
+        settings: profiles/projects/tft-training-log/settings.json
+        mcp: profiles/projects/tft-training-log/mcp.json
+    hengguang-ai-platform-demo:
+      repo: DwainYu/hengguang-ai-platform-demo
+      path: ~/projects/hengguang-ai-platform-demo
+      config:
+        settings: profiles/projects/hengguang-ai-platform-demo/settings.json
+        mcp: profiles/projects/hengguang-ai-platform-demo/mcp.json
+    md-content-publisher:
+      repo: DwainYu/md-content-publisher
+      path: ~/projects/md-content-publisher
+      config:
+        settings: profiles/projects/md-content-publisher/settings.json
+        mcp: profiles/projects/md-content-publisher/mcp.json

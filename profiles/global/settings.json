@@ -1,0 +1,14 @@
+{
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-hashline",
+    "npm:pi-subagents",
+    "npm:pi-mcp-adapter",
+    "npm:@firstpick/pi-themes-bundle",
+    "npm:pi-atelier",
+    "npm:@agegr/pi-web",
+    "npm:pi-hermes-memory"
+  ],
+  "theme": "tokyo-night",
+  "extensions": []
+}

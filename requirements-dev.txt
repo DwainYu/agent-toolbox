@@ -1,0 +1,5 @@
+# agent-toolbox development/test dependencies
+# The toolbox itself is bash + jq + python3(+PyYAML). None of these are runtime
+# requirements on managed machines; they are only needed to run the test suite
+# and the validation/update CI jobs.
+pyyaml>=6.0

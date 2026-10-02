@@ -1,0 +1,50 @@
+# =============================================================================
+# catalog/mcp.yaml
+# -----------------------------------------------------------------------------
+# Browsable reference registry of known MCP servers (managed + reference-only).
+# The source of truth is manifest.yaml.
+# =============================================================================
+schema_version: 1
+kind: mcp
+
+entries:
+  - id: exa
+    name: exa
+    scope: global
+    managed: true
+    status: managed
+    transport: http
+    url: https://mcp.exa.ai/mcp
+    summary: Web search and current-information retrieval.
+    path: ~/.pi/agent/mcp.json
+
+  - id: context7
+    name: context7
+    scope: global
+    managed: true
+    status: managed
+    transport: http
+    url: https://mcp.context7.com/mcp
+    summary: Library / framework documentation lookup.
+    path: ~/.pi/agent/mcp.json
+
+  - id: searchcode
+    name: searchcode
+    scope: global
+    managed: true
+    status: managed
+    transport: http
+    url: https://api.searchcode.com/v1/mcp
+    summary: Search public git repositories.
+    path: ~/.pi/agent/mcp.json
+
+  - id: codegraph
+    name: codegraph
+    scope: project
+    managed: true
+    status: managed
+    transport: stdio
+    command: codegraph serve --mcp
+    projects: [agent-engineering-lab, tft-training-log, hengguang-ai-platform-demo, md-content-publisher]
+    summary: Code navigation (call chains, blast radius) via the codegraph CLI.
+    path: <repo>/.pi/mcp.json

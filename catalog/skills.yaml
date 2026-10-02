@@ -1,0 +1,67 @@
+# =============================================================================
+# catalog/skills.yaml
+# -----------------------------------------------------------------------------
+# Browsable reference registry of known skills (managed + reference-only).
+# The source of truth is manifest.yaml; this file is a curated index for humans
+# and agents. `managed: true` means the resource is declared in manifest.yaml;
+# `managed: false` means it is recorded here as reference-only.
+# =============================================================================
+schema_version: 1
+kind: skill
+
+entries:
+  - id: browser-skill
+    name: browser-skill
+    scope: global
+    managed: true
+    status: reference-only
+    source: manual (bsk bundled)
+    summary: Automate a logged-in Chromium browser via the bsk CLI.
+    path: ~/.pi/agent/skills/browser-skill
+
+  - id: open-code-review
+    name: open-code-review
+    scope: global
+    managed: true
+    status: reference
+    source: github.com/alibaba/open-code-review
+    summary: AI code review Git changes via the ocr CLI.
+    path: ~/.pi/agent/skills/open-code-review
+
+  - id: open-code-review-delegate
+    name: open-code-review-delegate
+    scope: global
+    managed: true
+    status: reference
+    source: github.com/alibaba/open-code-review
+    summary: Host-driven delegation mode for open-code-review.
+    path: ~/.pi/agent/skills/open-code-review-delegate
+
+  - id: orca-cli
+    name: orca-cli
+    scope: global
+    managed: true
+    status: reference
+    source: github.com/stablyai/orca
+    summary: Operate Orca worktrees/terminals/artifacts via the orca CLI.
+    path: ~/.pi/agent/skills/orca-cli
+
+  - id: orchestration
+    name: orchestration
+    scope: global
+    managed: true
+    status: reference
+    source: github.com/stablyai/orca
+    summary: Coordinate supervised Orca workers and task DAGs.
+    path: ~/.pi/agent/skills/orchestration
+
+  - id: bilingual-learning
+    name: bilingual-learning
+    scope: project
+    managed: false
+    status: reference-only
+    projects: [agent-engineering-lab]
+    source: local (agent-engineering-lab repo)
+    summary: Maintain English/Chinese learning documents for Agent Engineering Lab.
+    path: <repo>/.pi/skills/bilingual-learning
+    notes: Owned by the agent-engineering-lab repo; not managed by the toolbox.

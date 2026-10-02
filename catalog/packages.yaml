@@ -1,0 +1,118 @@
+# =============================================================================
+# catalog/packages.yaml
+# -----------------------------------------------------------------------------
+# Browsable reference registry of known Pi packages (managed + reference-only).
+# Pi packages are installed via `pi install` / `pi update` and can bundle
+# extensions, skills, prompts and themes. DO NOT reimplement the Pi package
+# installer -- prefer the native `pi` commands.
+# The source of truth is manifest.yaml.
+# =============================================================================
+schema_version: 1
+kind: package
+
+entries:
+  - id: pi-web-access
+    name: pi-web-access
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 0.35.0
+    summary: Web access capabilities for pi.
+    path: ~/.pi/agent/settings.json
+
+  - id: pi-hashline
+    name: pi-hashline
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 0.2.0
+    summary: Hashline edit-format support (hashline diffs).
+    path: ~/.pi/agent/settings.json
+
+  - id: pi-subagents
+    name: pi-subagents
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 0.74.0
+    summary: Subagent / delegation support.
+    path: ~/.pi/agent/settings.json
+
+  - id: pi-mcp-adapter
+    name: pi-mcp-adapter
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 5.0.0
+    summary: MCP adapter integration.
+    path: ~/.pi/agent/settings.json
+
+  - id: pi-themes-bundle
+    name: pi-themes-bundle
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 0.1.6
+    summary: TUI themes bundle.
+    path: ~/.pi/agent/settings.json
+
+  - id: pi-atelier
+    name: pi-atelier
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 0.13.0
+    summary: Atelier tooling / UI resources.
+    path: ~/.pi/agent/settings.json
+
+  - id: pi-web
+    name: @agegr/pi-web
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 0.9.3
+    summary: Core pi web package.
+    path: ~/.pi/agent/settings.json
+
+  - id: pi-hermes-memory
+    name: pi-hermes-memory
+    scope: global
+    managed: true
+    status: managed
+    source: npm
+    ref: 0.9.9
+    summary: Persistent memory across sessions.
+    path: ~/.pi/agent/settings.json
+
+  - id: superpowers
+    name: superpowers
+    scope: project
+    managed: false
+    status: reference-only
+    projects: [projects-workspace]
+    source: github.com/obra/superpowers
+    ref: 6.3.0 (commit b36e082)
+    summary: Superpowers workflow skills + extension; installed as a project package
+      in /home/user/projects/.pi/settings.json.
+    path: /home/user/projects/.pi/settings.json
+    notes: Workspace-level package, not part of the four tracked project profiles.
+      Recorded here as reference-only so the toolbox is aware of it.
+
+  - id: bigpowers
+    name: bigpowers
+    scope: global
+    managed: false
+    status: reference-only
+    source: npm (transitive)
+    ref: 2.88.2
+    summary: Transitive dependency of installed pi packages
+      (~/.pi/agent/npm/package.json dependencies). Not declared in settings.json.
+    path: ~/.pi/agent/npm/package.json
+    notes: Dependency, not a package entry. Recorded for awareness only.

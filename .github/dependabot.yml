@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used by the toolbox itself current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "actions"]
+
+  # Keep the validation/update toolchain current (PyYAML).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "test-tools"]
+
+# NOTE: resources that the toolbox *manages* (skills, MCP servers, Pi packages,
+# extensions) are intentionally NOT in dependabot. Their updates are driven by
+# the manifest + manifest-feed + .github/workflows/check-updates.yml instead,
+# so the same review/security gate applies to every change. See
+# docs/update-policy.md.

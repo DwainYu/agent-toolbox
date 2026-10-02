@@ -1,0 +1,190 @@
+schema_version: 1
+resources:
+  browser-skill:
+    requested:
+      source: manual
+      ref: ''
+    resolved:
+      version: bundled
+      commit: ''
+    checked_at: 2026-10-02
+  open-code-review:
+    requested:
+      source: github
+      url: https://github.com/alibaba/open-code-review
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  open-code-review-delegate:
+    requested:
+      source: github
+      url: https://github.com/alibaba/open-code-review
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  orca-cli:
+    requested:
+      source: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  orchestration:
+    requested:
+      source: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  exa:
+    requested:
+      source: url
+      url: https://mcp.exa.ai/mcp
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  context7:
+    requested:
+      source: url
+      url: https://mcp.context7.com/mcp
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  searchcode:
+    requested:
+      source: url
+      url: https://api.searchcode.com/v1/mcp
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  codegraph:
+    requested:
+      source: npm
+      package: '@colbymchenry/codegraph'
+      ref: 1.6.0
+    resolved:
+      version: 1.6.0
+      commit: ''
+    checked_at: '2026-10-02'
+  orca-agent-status:
+    requested:
+      source: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  orca-prefill:
+    requested:
+      source: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  orca-titlebar-spinner:
+    requested:
+      source: github
+      url: https://github.com/stablyai/orca
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  rtk:
+    requested:
+      source: local
+      path: ~/.pi/agent/extensions/rtk.ts
+      ref: ''
+    resolved:
+      version: ''
+      commit: ''
+    checked_at: 2026-10-02
+  pi-web-access:
+    requested:
+      source: npm
+      package: pi-web-access
+      ref: 0.35.0
+    resolved:
+      version: 0.35.0
+      commit: ''
+    checked_at: '2026-10-02'
+  pi-hashline:
+    requested:
+      source: npm
+      package: pi-hashline
+      ref: 0.2.0
+    resolved:
+      version: 0.2.0
+      commit: ''
+    checked_at: 2026-10-02
+  pi-subagents:
+    requested:
+      source: npm
+      package: pi-subagents
+      ref: 0.74.0
+    resolved:
+      version: 0.74.0
+      commit: ''
+    checked_at: '2026-10-02'
+  pi-mcp-adapter:
+    requested:
+      source: npm
+      package: pi-mcp-adapter
+      ref: 5.0.0
+    resolved:
+      version: 5.0.0
+      commit: ''
+    checked_at: 2026-10-02
+  pi-themes-bundle:
+    requested:
+      source: npm
+      package: '@firstpick/pi-themes-bundle'
+      ref: 0.1.6
+    resolved:
+      version: 0.1.6
+      commit: ''
+    checked_at: 2026-10-02
+  pi-atelier:
+    requested:
+      source: npm
+      package: pi-atelier
+      ref: 0.13.0
+    resolved:
+      version: 0.13.0
+      commit: ''
+    checked_at: 2026-10-02
+  pi-web:
+    requested:
+      source: npm
+      package: '@agegr/pi-web'
+      ref: 0.9.3
+    resolved:
+      version: 0.9.3
+      commit: ''
+    checked_at: 2026-10-02
+  pi-hermes-memory:
+    requested:
+      source: npm
+      package: pi-hermes-memory
+      ref: 0.9.9
+    resolved:
+      version: 0.9.9
+      commit: ''
+    checked_at: 2026-10-02
