@@ -7,5 +7,6 @@
   "pi-atelier": "0.13.0",
   "@agegr/pi-web": "0.9.3",
   "pi-hermes-memory": "0.9.9",
-  "@colbymchenry/codegraph": "1.7.0"
+  "@colbymchenry/codegraph": "1.7.0",
+  "@alibaba-group/open-code-review": "1.13.0"
 }

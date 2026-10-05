@@ -2,9 +2,423 @@ schema_version: 1
 toolbox:
   name: agent-toolbox
   owner: DwainYu
+  # legacy field kept for compatibility; the toolbox is no longer Pi-only.
   primary_runtime: pi
-  description: Personal Agent resource registry and configuration manager
+  model: capability
+  shared_root: ~/.agents
+  description: Capability and harness-adapter registry + configuration manager
+# -----------------------------------------------------------------------------
+# harnesses — the adapter registry. A harness describes HOW to attach, a
+# capability below describes WHAT to attach. Nothing here copies a tool.
+# -----------------------------------------------------------------------------
+harnesses:
+  pi:
+    id: pi
+    name: Pi
+    status: active
+    config_root: ~/.pi/agent
+    skill_dir: ~/.pi/agent/skills
+    skill_scan_dirs:
+    - ~/.pi/agent/skills
+    - ~/.agents/skills
+    skill_strategy: shared
+    mcp_file: ~/.agents/mcp.json
+    mcp_format: mcpServers
+    mcp_strategy: shared
+    installer_ids:
+      bsk: Pi
+      skills: pi
+  codebuddy:
+    id: codebuddy
+    name: CodeBuddy
+    status: active
+    config_root: ~/.codebuddy
+    skill_dir: ~/.codebuddy/skills
+    skill_scan_dirs:
+    - ~/.codebuddy/skills
+    skill_strategy: symlink
+    mcp_file: ~/.codebuddy/mcp.json
+    mcp_format: mcpServers
+    mcp_strategy: native
+    installer_ids:
+      bsk: CodeBuddy
+      skills: codebuddy
+  qoder-cn:
+    id: qoder-cn
+    name: Qoder CN
+    status: active
+    config_root: ~/.qoder-cn
+    skill_dir: ~/.qoder-cn/skills
+    skill_scan_dirs:
+    - ~/.qoder-cn/skills
+    skill_strategy: symlink
+    mcp_file: ~/.qoder-cn/settings.json
+    mcp_format: mcpServers
+    mcp_strategy: native
+    installer_ids:
+      bsk: qoder-cn
+      skills: qoder-cn
+  opencode:
+    id: opencode
+    name: OpenCode
+    status: active
+    config_root: ~/.config/opencode
+    skill_dir: ~/.config/opencode/skills
+    # OpenCode also scans the tool-agnostic shared store (proved on this machine:
+    # open-code-review is loadable although only ~/.agents/skills holds it).
+    skill_scan_dirs:
+    - ~/.config/opencode/skills
+    - ~/.agents/skills
+    skill_strategy: symlink
+    mcp_file: ~/.config/opencode/opencode.jsonc
+    mcp_format: opencode-mcp
+    mcp_strategy: native
+    installer_ids:
+      bsk: opencode
+      skills: opencode
+  # --- future harnesses: declared so the schema is proven to be extensible,
+  #     but `status: planned` -> never touched by install/doctor.
+  claude-code:
+    id: claude-code
+    name: Claude Code
+    status: planned
+    config_root: ~/.claude
+    skill_dir: ~/.claude/skills
+    skill_scan_dirs:
+    - ~/.claude/skills
+    skill_strategy: installer
+    mcp_file: ~/.claude.json
+    mcp_format: mcpServers
+    mcp_strategy: native
+    installer_ids:
+      bsk: claude-code
+      skills: claude-code
+  codex:
+    id: codex
+    name: Codex
+    status: planned
+    config_root: ~/.codex
+    skill_dir: ~/.agents/skills
+    skill_scan_dirs:
+    - ~/.agents/skills
+    skill_strategy: shared
+    mcp_file: ~/.agents/mcp.json
+    mcp_format: mcpServers
+    mcp_strategy: shared
+    installer_ids:
+      bsk: codex
+      skills: codex
+  gemini-cli:
+    id: gemini-cli
+    name: Gemini CLI
+    status: planned
+    config_root: ~/.gemini
+    skill_dir: ~/.gemini/skills
+    skill_scan_dirs:
+    - ~/.gemini/skills
+    skill_strategy: symlink
+    mcp_file: ~/.gemini/settings.json
+    mcp_format: mcpServers
+    mcp_strategy: native
+    installer_ids:
+      skills: gemini
+  hermes:
+    id: hermes
+    name: Hermes
+    status: planned
+    config_root: ~/.hermes
+    skill_dir: ~/.hermes/skills
+    skill_scan_dirs:
+    - ~/.hermes/skills
+    skill_strategy: symlink
+    mcp_file: ~/.hermes/mcp.json
+    mcp_format: mcpServers
+    mcp_strategy: native
+    installer_ids:
+      bsk: hermes
+      skills: hermes
+  cursor:
+    id: cursor
+    name: Cursor
+    status: planned
+    config_root: ~/.cursor
+    skill_dir: ~/.cursor/skills
+    skill_scan_dirs:
+    - ~/.cursor/skills
+    skill_strategy: installer
+    mcp_file: ~/.cursor/mcp.json
+    mcp_format: mcpServers
+    mcp_strategy: native
+    installer_ids:
+      bsk: cursor
+      skills: cursor
+# -----------------------------------------------------------------------------
+# capabilities — the capability registry (capability first).
+# A capability owns a CLI and/or an MCP server; its skills are only adapters
+# that teach a harness how to reach that CLI/MCP. Sources and versions stay in
+# `resources` below (single source of truth) -- capabilities reference them by
+# id and never duplicate upstream information.
+# -----------------------------------------------------------------------------
+capabilities:
+  browser:
+    id: browser
+    name: BrowserSkill
+    provider: Tencent
+    description: Drive the user's logged-in Chromium browser through the bsk CLI
+      and a browser extension.
+    cli:
+      resource: bsk
+      command: bsk
+      required: true
+      updater:
+        command: bsk
+        args:
+        - update
+    skills:
+    - resource: browser-skill
+      shared_path: ~/.agents/skills/browser-skill
+    installer:
+      id: bsk
+      command: bsk
+      args:
+      - install-skill
+      - --harness
+      - '{id}'
+      - -y
+    harnesses:
+      pi:
+        skill_strategy: shared
+      codebuddy:
+        skill_strategy: installer
+      qoder-cn:
+        skill_strategy: symlink
+      opencode:
+        skill_strategy: symlink
+  code-review:
+    id: code-review
+    name: OpenCodeReview
+    provider: alibaba
+    description: AI-powered line-level code review on git changes through the ocr
+      CLI, plus its two host-agent skills.
+    cli:
+      resource: ocr
+      command: ocr
+      required: true
+      updater:
+        command: npm
+        args:
+        - install
+        - -g
+        - '@alibaba-group/open-code-review'
+    skills:
+    - resource: open-code-review
+      shared_path: ~/.agents/skills/open-code-review
+    - resource: open-code-review-delegate
+      shared_path: ~/.agents/skills/open-code-review-delegate
+    installer:
+      id: skills
+      command: npx
+      args:
+      - skills
+      - add
+      - alibaba/open-code-review
+      - --skill
+      - '*'
+      - --global
+      - --agent
+      - '{id}'
+      - --yes
+    harnesses:
+      pi:
+        skill_strategy: shared
+      codebuddy:
+        skill_strategy: installer
+      qoder-cn:
+        skill_strategy: installer
+      opencode:
+        skill_strategy: installer
+  code-intelligence:
+    id: code-intelligence
+    name: CodeGraph
+    provider: codegraph
+    description: Code navigation (call chains, blast radius, related symbols) as a
+      CLI plus a stdio MCP server.
+    cli:
+      resource: codegraph-cli
+      command: codegraph
+      required: true
+      updater:
+        command: codegraph
+        args:
+        - upgrade
+    mcp:
+      enabled: true
+      server_name: codegraph
+      transport: stdio
+      definition: shared
+      reindex_check: true
+    harnesses:
+      pi:
+        mcp_strategy: shared
+      codebuddy:
+        mcp_strategy: native
+      qoder-cn:
+        mcp_strategy: native
+      opencode:
+        mcp_strategy: native
+  # --- MCP-only capabilities hosted by third parties. Their canonical
+  #     definitions live in the tool-agnostic shared layer
+  #     (profiles/shared/mcp.json -> ~/.agents/mcp.json), the single MCP
+  #     source of truth; Pi reads it directly, the others mirror it natively.
+  exa:
+    id: exa
+    name: Exa
+    provider: exa
+    description: Web search / current information via the hosted Exa MCP endpoint.
+    mcp:
+      enabled: true
+      server_name: exa
+      transport: http
+      definition: shared
+    harnesses:
+      pi:
+        mcp_strategy: shared
+      codebuddy:
+        mcp_strategy: native
+      qoder-cn:
+        mcp_strategy: native
+      opencode:
+        mcp_strategy: native
+  context7:
+    id: context7
+    name: Context7
+    provider: context7
+    description: Library / framework documentation via the hosted Context7 MCP.
+    mcp:
+      enabled: true
+      server_name: context7
+      transport: http
+      definition: shared
+    harnesses:
+      pi:
+        mcp_strategy: shared
+      codebuddy:
+        mcp_strategy: native
+      qoder-cn:
+        mcp_strategy: native
+      opencode:
+        mcp_strategy: native
+  searchcode:
+    id: searchcode
+    name: Searchcode
+    provider: searchcode
+    description: Search public git repositories via the hosted searchcode MCP.
+    mcp:
+      enabled: true
+      server_name: searchcode
+      transport: http
+      definition: shared
+    harnesses:
+      pi:
+        mcp_strategy: shared
+      codebuddy:
+        mcp_strategy: native
+      qoder-cn:
+        mcp_strategy: native
+      opencode:
+        mcp_strategy: native
+# -----------------------------------------------------------------------------
+# resources — single source of truth for sources and versions.
+# `clis` is the new group for capability CLIs (kind: cli).
+# -----------------------------------------------------------------------------
 resources:
+  clis:
+  - id: bsk
+    name: bsk
+    kind: cli
+    scope: global
+    description: BrowserSkill CLI (capability body for the `browser` capability).
+    source:
+      type: manual
+      url: ''
+      ref: ''
+    resolution:
+      version: 0.3.0
+      commit: ''
+      checked_at: '2026-10-04'
+    update:
+      policy: manual
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: official-cli
+      path: ~/.local/bin/bsk
+    tags:
+    - cli
+    - browser
+    notes: Self-updating binary (`bsk update`). The toolbox probes `bsk --version`
+      live and never installs or re-downloads it.
+  - id: ocr
+    name: ocr
+    kind: cli
+    scope: global
+    description: OpenCodeReview CLI (capability body for `code-review`).
+    source:
+      type: npm
+      package: '@alibaba-group/open-code-review'
+      ref: 1.12.12
+    resolution:
+      version: '1.12.12'
+      commit: ''
+      checked_at: '2026-10-05'
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: official-cli
+      path: ~/.hermes/node/bin/ocr
+    tags:
+    - cli
+    - code-review
+    notes: npm package, weekly upstream check. Never installed into any harness
+      directory -- the CLI lives on PATH once.
+  - id: codegraph-cli
+    name: codegraph
+    kind: cli
+    scope: global
+    description: CodeGraph CLI (capability body for `code-intelligence`; also serves
+      the MCP server).
+    source:
+      type: npm
+      package: '@colbymchenry/codegraph'
+      ref: 1.6.0
+    resolution:
+      version: 1.6.0
+      commit: ''
+      checked_at: '2026-10-04'
+    update:
+      policy: weekly
+      channel: stable
+    security:
+      trust: review
+      executable: true
+      review_required: true
+    install:
+      method: official-cli
+      path: ~/.hermes/node/bin/codegraph
+    tags:
+    - cli
+    - codegraph
+    notes: One binary provides both the CLI and the stdio MCP server
+      (`codegraph serve --mcp`). Index freshness is separate from CLI upgrades --
+      see docs/lifecycle.md.
   skills:
   - id: browser-skill
     name: browser-skill
@@ -28,15 +442,16 @@ resources:
       executable: false
       review_required: true
     install:
-      method: manual
-      path: ~/.pi/agent/skills/browser-skill
+      method: official-installer
+      path: ~/.agents/skills/browser-skill
     tags:
     - browser
     - bsk
     - automation
-    notes: Installed with a `bundled` source marker (.bsk-source sha256 cba2fdf48df55f...).
-      Managed by the bsk/browser tooling, not by this toolbox. V1 = reference-only;
-      no resolvable upstream to diff.
+    notes: Single shared copy in ~/.agents/skills/ (tool-agnostic). Installed and
+      updated by the official installer (`bsk install-skill`), never by this toolbox.
+      Harnesses attach via symlink or by scanning the shared dir -- see
+      capabilities.browser.harnesses.
   - id: open-code-review
     name: open-code-review
     kind: skill
@@ -59,15 +474,15 @@ resources:
       executable: false
       review_required: true
     install:
-      method: manual
-      path: ~/.pi/agent/skills/open-code-review
+      method: official-installer
+      path: ~/.agents/skills/open-code-review
     tags:
     - code-review
     - ocr
     - grpc
-    notes: Skill ships alongside the ocr CLI (npm @alibaba-group/open-code-review,
-      v1.12.9 bccbc15). No local commit marker for the SKILL.md itself, so upstream
-      diffing is not reliable in V1 -> update policy manual.
+    notes: Shared adapter only; teaches a harness to call the `ocr` CLI. Installed
+      by `npx skills add alibaba/open-code-review --global` (adapter update), while
+      the CLI itself upgrades via npm (tool update) -- see docs/lifecycle.md.
   - id: open-code-review-delegate
     name: open-code-review-delegate
     kind: skill
@@ -90,13 +505,14 @@ resources:
       executable: false
       review_required: true
     install:
-      method: manual
-      path: ~/.pi/agent/skills/open-code-review-delegate
+      method: official-installer
+      path: ~/.agents/skills/open-code-review-delegate
     tags:
     - code-review
     - delegate
-    notes: Same upstream family as open-code-review; no local commit marker -> manual
-      update policy.
+    notes: Shared adapter of the same family as open-code-review; installed by the
+      same official `npx skills add` call. Keep the two skills in sync -- they ship
+      from one upstream repo.
   - id: orca-cli
     name: orca-cli
     kind: skill
@@ -183,15 +599,16 @@ resources:
       transport: http
       url: https://mcp.exa.ai/mcp
     install:
-      method: mcp-config
-      path: ~/.pi/agent/mcp.json
+      method: shared-mcp
+      path: ~/.agents/mcp.json
     tags:
     - mcp
     - search
     - exa
     notes: Hosted (URL) MCP endpoint. Version is managed by the provider; there is
       no local ref to diff, so updates are reported only on command/url/args change.
-      Does not require a secret in this config.
+      Does not require a secret in this config. Canonical definition lives in the
+      shared layer (~/.agents/mcp.json); harnesses mirror it natively.
   - id: context7
     name: context7
     kind: mcp
@@ -216,13 +633,14 @@ resources:
       transport: http
       url: https://mcp.context7.com/mcp
     install:
-      method: mcp-config
-      path: ~/.pi/agent/mcp.json
+      method: shared-mcp
+      path: ~/.agents/mcp.json
     tags:
     - mcp
     - docs
     - context7
-    notes: Hosted URL endpoint; no local ref to diff.
+    notes: Hosted URL endpoint; no local ref to diff. Canonical definition lives
+      in the shared layer (~/.agents/mcp.json).
   - id: searchcode
     name: searchcode
     kind: mcp
@@ -248,34 +666,34 @@ resources:
       transport: http
       url: https://api.searchcode.com/v1/mcp
     install:
-      method: mcp-config
-      path: ~/.pi/agent/mcp.json
+      method: shared-mcp
+      path: ~/.agents/mcp.json
     tags:
     - mcp
     - search
     - code
-    notes: Hosted URL endpoint; no local ref to diff.
+    notes: Hosted URL endpoint; no local ref to diff. Canonical definition lives
+      in the shared layer (~/.agents/mcp.json).
   - id: codegraph
     name: codegraph
     kind: mcp
-    scope: project
+    scope: global
     description: Code navigation MCP (call chains, blast radius, related symbols)
       served over stdio by the `codegraph` CLI.
-    projects:
-    - agent-engineering-lab
-    - tft-training-log
-    - hengguang-ai-platform-demo
-    - md-content-publisher
     source:
-      type: npm
-      package: '@colbymchenry/codegraph'
-      ref: 1.6.0
+      # The MCP server IS the `codegraph` binary. Upstream version tracking for
+      # it is owned by the `codegraph-cli` resource (one tool, one source of
+      # truth) -- this entry only declares the MCP wiring, so it is never probed
+      # independently.
+      type: manual
+      url: ''
+      ref: ''
     resolution:
-      version: 1.6.0
+      version: ''
       commit: ''
-      checked_at: '2026-10-02'
+      checked_at: '2026-10-04'
     update:
-      policy: weekly
+      policy: pin
       channel: stable
     security:
       trust: review
@@ -288,14 +706,17 @@ resources:
       - serve
       - --mcp
     install:
-      method: mcp-config
-      path: .pi/mcp.json
+      method: shared-mcp
+      path: ~/.agents/mcp.json
     tags:
     - mcp
     - codegraph
     - stdio
-    notes: stdio MCP installed into each project's .pi/mcp.json. Upstream is the npm
-      package @colbymchenry/codegraph -> weekly check via `npm view`.
+    notes: Canonical definition lives in the tool-agnostic shared layer
+      (~/.agents/mcp.json, repo side profiles/shared/mcp.json). Pi reads it
+      directly; CodeBuddy/Qoder/OpenCode mirror it into their native config.
+      NEVER written into per-project .pi/mcp.json -- project-local MCP is an
+      explicit opt-in only (install.sh <capability> --scope project).
   extensions:
   - id: orca-agent-status
     name: orca-agent-status
@@ -641,8 +1062,21 @@ resources:
   prompts: []
   themes: []
 profiles:
+  # Tool-agnostic shared layer: one copy of every shared skill / MCP definition.
+  shared:
+    path: ~/.agents
+    config:
+      mcp: profiles/shared/mcp.json
+      skills: ~/.agents/skills
   global:
     path: ~/.pi/agent
+    capabilities:
+    - browser
+    - code-review
+    - code-intelligence
+    - exa
+    - context7
+    - searchcode
     config:
       settings: profiles/global/settings.json
       mcp: profiles/global/mcp.json
@@ -652,24 +1086,36 @@ profiles:
     agent-engineering-lab:
       repo: DwainYu/agent-engineering-lab
       path: ~/projects/agent-engineering-lab
+      capabilities:
+      - code-intelligence
+      - code-review
       config:
         settings: profiles/projects/agent-engineering-lab/settings.json
         mcp: profiles/projects/agent-engineering-lab/mcp.json
     tft-training-log:
       repo: DwainYu/tft-training-log
       path: ~/projects/tft-training-log
+      capabilities:
+      - code-intelligence
+      - code-review
       config:
         settings: profiles/projects/tft-training-log/settings.json
         mcp: profiles/projects/tft-training-log/mcp.json
     hengguang-ai-platform-demo:
       repo: DwainYu/hengguang-ai-platform-demo
       path: ~/projects/hengguang-ai-platform-demo
+      capabilities:
+      - code-intelligence
+      - code-review
       config:
         settings: profiles/projects/hengguang-ai-platform-demo/settings.json
         mcp: profiles/projects/hengguang-ai-platform-demo/mcp.json
     md-content-publisher:
       repo: DwainYu/md-content-publisher
       path: ~/projects/md-content-publisher
+      capabilities:
+      - code-intelligence
+      - code-review
       config:
         settings: profiles/projects/md-content-publisher/settings.json
         mcp: profiles/projects/md-content-publisher/mcp.json

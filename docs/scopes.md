@@ -1,56 +1,97 @@
 # Scopes and how configuration is applied
 
-A resource's `scope` says **where it lives**. Pi loads configuration from three
-places; the toolbox mirrors them with a `global` scope and per-project scopes.
+A resource's `scope` says **where it lives**; a capability's adapter says **which
+harness consumes it**. Those are different axes, so V2 has three layers instead
+of V1's two.
 
-## Two scopes
+## Three layers
 
-| Scope     | Lives in                                   | Loaded by Pi         |
-| --------- | ------------------------------------------ | -------------------- |
-| `global`  | `profiles/global/` → `~/.pi/agent/`        | whenever Pi runs    |
-| `project` | `profiles/projects/<name>/` → `<repo>/.pi/`| when the project is trusted |
+| Layer | Lives in | Written by | Consumed by |
+| --- | --- | --- | --- |
+| **Shared** (default) | `~/.agents/` — `skills/`, `mcp.json` | official installers (skills), `install.sh shared` / capability adapter (MCP) | every harness, directly or via links |
+| **Harness** | `~/.pi/agent/`, `~/.codebuddy/`, `~/.qoder-cn/`, `~/.config/opencode/` | `install.sh global` (Pi profile) or the MCP mirror | exactly one harness |
+| **Project** (opt-in) | `<repo>/.pi/` | `install.sh project <name>` / `install … --scope project` | only that repo, after it is trusted |
 
-A project-scoped MCP server (like the `codegraph` static-analysis server) is
-installed into each project's `.pi/mcp.json`. A global skill (like
-`browser-skill`) is installed into `~/.pi/agent/skills/`.
+The direction of truth:
+
+```
+profiles/shared/mcp.json   ->  ~/.agents/mcp.json        (shared MCP source of truth)
+profiles/global/*          ->  ~/.pi/agent/*             (Pi harness profile; its mcp.json is
+                                                          legacy-empty — servers live in shared)
+profiles/projects/<n>/*    ->  <repo>/.pi/*              (explicit project opt-in)
+```
+
+## Global shared MCP is the default
+
+Every MCP capability defaults to the shared layer, **not** to a project file:
+
+```
+~/.agents/mcp.json
+   ├── Pi          reads it directly (pi-mcp-adapter auto-discovers it)
+   ├── CodeBuddy   mirrored into ~/.codebuddy/mcp.json
+   ├── Qoder CN    mirrored into ~/.qoder-cn/settings.json
+   └── OpenCode    mirrored into ~/.config/opencode/opencode.jsonc
+```
+
+**Project-local MCP is never created by default.** The eight per-project
+`.pi/mcp.json` files of the old layout were removed for exactly this reason: a
+project-scoped server needs per-project trust, gets shadowed when a global
+definition exists, and multiplies one server into N files.
+
+It is available only as an explicit opt-in:
+
+```bash
+./bin/agent-toolbox install code-intelligence \
+    --scope project --project <name> --apply
+```
+
+## Scopes in the profiles
+
+```yaml
+profiles:
+  global:
+    capabilities: [browser, code-review, code-intelligence, exa, context7, searchcode]
+  projects:
+    agent-engineering-lab:
+      capabilities: [code-intelligence, code-review]   # Browser OFF here
+```
+
+- **Global profile capabilities** — what this machine offers through Pi's
+  harness profile.
+- **Project capabilities** — what *this repository* wants enabled. Another repo
+  can turn Browser on and CodeReview off; the capability itself is unchanged,
+  only its per-project declaration differs.
+
+Project capability lists are declarative: they are validated and shown by
+`status`, but they do not by themselves write anything into the repo.
 
 ## The golden rule: never clobber existing config
 
-The toolbox **adds** to the live environment; it does not overwrite. Concretely,
-`scripts/install.sh --apply`:
+`install.sh` and the capability installer **add**; they never overwrite:
 
-- Merges `packages` by **union** — declares the missing ones, keeps existing
-  ones, never removes.
-- Sets `theme` only when the target has no theme. If you already chose a theme,
-  the toolbox preserves yours.
-- Adds missing MCP servers, and **preserves** any existing server whose config
-  differs (it never silently replaces a server you configured).
-- Leaves every unknown key you added untouched.
-
-Before writing, `install.sh` backs up the target to `<file>.atb-backup.<ts>`.
+- `packages` merged by union — missing ones added, existing ones kept, none removed.
+- `theme` set only if the target has none.
+- MCP servers added only when absent; a server you configured differently is
+  reported as `preserved`.
+- Unknown keys you added are left untouched.
+- An existing path (symlink/copy) is never clobbered — a conflict is reported
+  with a hint instead.
+- Every write is preceded by `<file>.atb-backup.<ts>`.
 
 ## Explicit, reversible, safe
 
-`install.sh` and `sync.sh` default to **dry-run**. To actually change a machine:
-
 ```bash
-./scripts/install.sh global --apply
-./scripts/install.sh project <name> --target /path --apply
+./scripts/install.sh global --apply           # Pi harness profile
+./scripts/install.sh shared --apply           # shared MCP layer
+./scripts/install.sh project <name> --apply   # project profile
+./bin/agent-toolbox install <cap> --harness <id> --apply   # one adapter
 ```
 
-`install.sh` is idempotent: running `--apply` twice is a no-op when already in
-sync. Nothing is ever auto-applied by CI — see `docs/update-policy.md`.
+All default to **dry-run**. After a write the target is verified; if
+verification fails the backup is restored. Every mutation is appended to
+`state/install-log.jsonl` (machine-local, git-ignored).
 
 ## Trust boundary
 
 Pi only loads project configuration for projects you **trust**. The toolbox
-records the profile, but a project-scoped skill/extension loads only after you
-accept it in Pi's project-trust dialog. This is intentional: the toolbox cannot
-and must not bypass Pi's trust model.
-
-## Live vs declared
-
-`scripts/status.sh` computes `drift` by comparing the live environment
-(`~/.pi/agent`, each project's `.pi/`) against the manifest. It tells you which
-declared resources are missing/mismatched on **this** machine — useful when you
-set up a new machine or clone the toolbox to a new host.
+records the profile but cannot and must not bypass that dialog — same as V1.

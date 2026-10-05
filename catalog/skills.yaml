@@ -17,7 +17,9 @@ entries:
     status: reference-only
     source: manual (bsk bundled)
     summary: Automate a logged-in Chromium browser via the bsk CLI.
-    path: ~/.pi/agent/skills/browser-skill
+    capability: browser
+    adapter_of: bsk CLI (shared source, harnesses attach by link or scan)
+    path: ~/.agents/skills/browser-skill
 
   - id: open-code-review
     name: open-code-review
@@ -26,7 +28,9 @@ entries:
     status: reference
     source: github.com/alibaba/open-code-review
     summary: AI code review Git changes via the ocr CLI.
-    path: ~/.pi/agent/skills/open-code-review
+    capability: code-review
+    adapter_of: ocr CLI (shared source, harnesses attach by link or scan)
+    path: ~/.agents/skills/open-code-review
 
   - id: open-code-review-delegate
     name: open-code-review-delegate
@@ -35,7 +39,9 @@ entries:
     status: reference
     source: github.com/alibaba/open-code-review
     summary: Host-driven delegation mode for open-code-review.
-    path: ~/.pi/agent/skills/open-code-review-delegate
+    capability: code-review
+    adapter_of: ocr CLI (shared source, harnesses attach by link or scan)
+    path: ~/.agents/skills/open-code-review-delegate
 
   - id: orca-cli
     name: orca-cli

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# =============================================================================
+# agent-toolbox — one entrypoint for the capability / harness-adapter registry
+#
+#   agent-toolbox capabilities [--grid] [--json]
+#   agent-toolbox status [--json]
+#   agent-toolbox doctor [--strict] [--json]
+#   agent-toolbox validate [--json]
+#   agent-toolbox install <capability> --harness <id>|--all-harnesses [--apply]
+#   agent-toolbox install global|shared|project <name> [--apply]     (profiles)
+#   agent-toolbox update [--apply] [--reindex] [--mock]
+#   agent-toolbox sync|check-updates|bootstrap [flags]
+#
+# Thin dispatcher: every subcommand maps 1:1 onto scripts/*.sh, so the scripts
+# remain directly usable (V1 invocations keep working).
+# =============================================================================
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPTS="$ROOT/scripts"
+
+usage() {
+  cat <<'EOF'
+agent-toolbox — capability / harness-adapter registry
+
+  agent-toolbox capabilities [--grid] [--json]
+  agent-toolbox status [--json]
+  agent-toolbox doctor [--strict] [--json]
+  agent-toolbox validate [--json]
+  agent-toolbox install <capability> --harness <id>|--all-harnesses [--apply]
+  agent-toolbox install global|shared|project <name> [--apply]     (profiles)
+  agent-toolbox update [--apply] [--reindex] [--mock]
+  agent-toolbox sync|check-updates|bootstrap [flags]
+
+Every subcommand maps 1:1 onto scripts/*.sh, so those remain directly usable.
+EOF
+}
+
+cmd="${1:-}"
+[[ -z "$cmd" || "$cmd" == "-h" || "$cmd" == "--help" || "$cmd" == "help" ]] && { usage; exit 0; }
+shift || true
+
+case "$cmd" in
+  capabilities|caps)  exec bash "$SCRIPTS/capabilities.sh" "$@" ;;
+  status)             exec bash "$SCRIPTS/status.sh" "$@" ;;
+  doctor)             exec bash "$SCRIPTS/doctor.sh" "$@" ;;
+  validate)           exec bash "$SCRIPTS/validate.sh" "$@" ;;
+  install)            exec bash "$SCRIPTS/install.sh" "$@" ;;
+  update)             exec bash "$SCRIPTS/update.sh" "$@" ;;
+  sync)               exec bash "$SCRIPTS/sync.sh" "$@" ;;
+  check-updates)      exec bash "$SCRIPTS/check-updates.sh" "$@" ;;
+  bootstrap)          exec bash "$SCRIPTS/bootstrap.sh" "$@" ;;
+  *)
+    echo "unknown command: $cmd" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

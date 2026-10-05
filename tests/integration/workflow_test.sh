@@ -62,9 +62,18 @@ assert_true python3 -c "import sys,json; d=json.loads(sys.stdin.read()); assert 
 assert_true python3 -c "import sys,json; d=json.loads(sys.stdin.read()); assert d.get('customFlag') is True" <<<"$s" 'user-owned key preserved'
 assert_eq "$(echo "$s" | grep -o 'pi-hashline' | wc -l)" "1" 'no duplicate package'
 m="$(cat "$FHOME/.pi/agent/mcp.json")"
-assert_true python3 -c "import sys,json; d=json.loads(sys.stdin.read()); assert 'context7' in d['mcpServers'] and 'searchcode' in d['mcpServers'] and 'exa' in d['mcpServers']" <<<"$m" 'mcp servers merged'
+assert_true python3 -c "import sys,json; d=json.loads(sys.stdin.read()); assert d=={'mcpServers':{'exa':{'url':'https://exa.example'}}}" <<<"$m" 'legacy Pi mcp.json untouched: global profile carries no MCP servers anymore'
 backups="$(ls "$FHOME/.pi/agent/"*.atb-backup.* 2>/dev/null | wc -l)"
-assert_eq "$backups" "2" 'two backups written (settings + mcp)'
+assert_eq "$backups" "1" 'settings backup only (mcp no longer written)'
+
+t_begin "install.sh shared --apply creates the shared MCP source of truth"
+out="$(env HOME="$FHOME" bash "$WORK/scripts/install.sh" shared --apply 2>&1)"; rc=$?
+assert_eq "$rc" "0" 'shared apply exits 0'
+assert_true python3 -c "import sys,json; d=json.loads(sys.stdin.read())['mcpServers']; assert set(d) >= {'codegraph','exa','context7','searchcode'}, sorted(d)" \
+  <<<"$(cat "$FHOME/.agents/mcp.json")" 'first run seeds all four shared servers'
+out="$(env HOME="$FHOME" bash "$WORK/scripts/install.sh" shared --apply 2>&1)"; rc=$?
+assert_eq "$rc" "0" 'second shared apply exits 0'
+assert_eq "$(ls "$FHOME/.agents/"*.atb-backup.* 2>/dev/null | wc -l)" "0" 're-run is a no-op (no write, no backup)'
 
 t_begin "install.sh global --apply is idempotent"
 env HOME="$FHOME" bash "$WORK/scripts/install.sh" global --apply >/dev/null 2>&1

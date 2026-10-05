@@ -80,7 +80,8 @@ detect_drift() {
   local home_pi="${HOME}/.pi/agent"
   if [[ -d "$home_pi" ]]; then
     local miss=""
-    miss+="$(missing_servers "${PROFILES_DIR}/global/mcp.json" "${home_pi}/mcp.json")"
+    # V2: the MCP source of truth is the shared layer, not ~/.pi/agent/mcp.json
+    miss+="$(missing_servers "${PROFILES_DIR}/shared/mcp.json" "${HOME}/.agents/mcp.json")"
     miss+="$(missing_packages "${PROFILES_DIR}/global/settings.json" "${home_pi}/settings.json")"
     miss="$(printf '%s\n' "$miss" | sed '/^$/d' | sort -u)"
     if [[ -n "$miss" ]]; then
@@ -131,6 +132,7 @@ if [[ "$ATB_JSON" == "1" ]]; then
   for k in skills mcp extensions packages; do
     updates="$(jq --arg k "$k" --argjson n "$(updates_pending_group "$k")" '. + {($k): $n}' <<<"$updates")"
   done
+  caps_json="$(bash "$SCRIPTS_DIR/capabilities.sh" --json 2>/dev/null || echo '{"capabilities":[]}')"
   jq -n \
     --argjson g_skills "$(global_counts_scope skills global)" \
     --argjson g_mcp "$(global_counts_scope mcp global)" \
@@ -138,14 +140,18 @@ if [[ "$ATB_JSON" == "1" ]]; then
     --argjson g_pkg "$(global_counts_scope packages global)" \
     --argjson projects "$projects" \
     --argjson updates "$updates" \
-    '{global:{skills:$g_skills,mcp:$g_mcp,extensions:$g_ext,packages:$g_pkg}, projects:$projects, updates:$updates, drift:[]}'
+    --argjson caps "$caps_json" \
+    '{global:{skills:$g_skills,mcp:$g_mcp,extensions:$g_ext,packages:$g_pkg}, projects:$projects, updates:$updates, capabilities:$caps.capabilities, drift:[]}'
   exit "$EXIT_OK"
 fi
 
 echo "Agent Toolbox"
 echo ""
-echo "Global"
-echo "-------"
+# --- capability view (capability -> CLI/MCP -> adapter -> harness) ----------
+bash "$SCRIPTS_DIR/capabilities.sh" 2>/dev/null || warn "capability view unavailable"
+echo ""
+echo "Registry counts"
+echo "---------------"
 printf '%-12s %s\n' "Skills"     "$(global_counts_scope skills global)"
 printf '%-12s %s\n' "MCP"        "$(global_counts_scope mcp global)"
 printf '%-12s %s\n' "Extensions" "$(global_counts_scope extensions global)"

@@ -1,111 +1,208 @@
 # agent-toolbox
 
-> Personal **Agent resource registry + configuration + update manager**, with
-> Pi coding agent as the core runtime.
+> **Capability & Harness-Adapter registry** for a multi-agent environment.
+> It manages *capabilities and their adapter relationships* — not a Pi skill set.
 
-`agent-toolbox` is a single, versioned home for everything your coding agent
-uses: Skills, MCP servers, Pi Extensions, Pi Packages, prompt templates
-(reserved), plus global and per-project configuration. It records **what you
-want** (`manifest.yaml`), what was **resolved** (`lock.yaml`), what's **live**
-on each machine (`~/.pi/agent/`, project `.pi/`), and how to get from any one to
-the others — without ever silently modifying your environment.
+`agent-toolbox` records the **capabilities** you own (`BrowserSkill`,
+`OpenCodeReview`, `CodeGraph`, …), the **agent harnesses** you run (`Pi`,
+`CodeBuddy`, `Qoder CN`, `OpenCode`, …), and the **adapters** that wire one to
+the other — as declarative YAML, with dry-run-by-default tooling that never
+copies a tool twice and never clobbers your config.
 
-## Why
+```
+             Agent Harnesses
+      ┌──────┬──────────┬───────┬──────────┐
+      │  Pi  │ CodeBuddy│ Qoder │ OpenCode │
+      └──┬───┴────┬─────┴───┬───┴────┬─────┘
+         └────────┴─────────┴────────┘
+                     │
+                Adapters           skill link / official installer
+                     │             mcp mirror / shared definition
+          Capability Registry      CLI probe / version + lock
+      ┌──────────────┼──────────────────┐
+      │              │                  │
+  Browser        CodeReview         CodeGraph
+    │              │                  │
+   bsk            ocr           codegraph CLI + MCP
+    │              │                  │
+ ~/.agents/skills (single shared source)   ~/.agents/mcp.json
+```
 
-Multiple installers (Pi, bsk, orca, npm, GitHub) scatter resources across
-several files and locations. This toolbox gives you:
+## Core concepts
 
-- **One manifest** declaring every skill / MCP server / extension / package.
-- **Version & commit tracking** with `lock.yaml`.
-- **Update checks** against upstream (`npm view`, `git ls-remote`) that open a
-  reviewable **PR** — never an automatic install.
-- **Drift detection** between manifest, lock, and the live environment.
-- **Explicit, reversible, idempotent** installs (`--apply`, backups first,
-  add-only merges that never clobber existing config).
+| Term | Meaning | Where it lives |
+| --- | --- | --- |
+| **Capability** | An independent ability owned by a tool: a CLI and/or an MCP server. Not owned by any agent. | `manifest.yaml` → `capabilities:` |
+| **CLI / MCP** | The capability *body*. `bsk`, `ocr`, `codegraph … serve --mcp`. | `manifest.yaml` → `resources.clis`, `resources.mcp` |
+| **Skill** | Only an *adapter*: it teaches one harness how to discover and call the capability. Never the tool itself. | `manifest.yaml` → `resources.skills` |
+| **Harness** | An agent runtime (Pi, CodeBuddy, Qoder CN, OpenCode, …). | `manifest.yaml` → `harnesses:` |
+| **Adapter** | The per-harness wiring strategy: `shared` / `symlink` / `installer` for skills, `shared` / `native` / `profile` for MCP. | `capabilities.<cap>.harnesses` + `harnesses.<id>` |
+| **Profile** | A concrete config snapshot: shared, global (Pi), per-project. | `profiles/**` |
+| **Lock** | Resolved versions/commits — the *have* side of the registry. | `lock.yaml` |
+
+Single source of truth: **one CLI, one capability definition, one shared skill
+copy, one shared MCP definition — many harness adapters.**
+
+```
+~/.agents/skills/browser-skill   ← exactly one copy
+        ├── Pi            (scans the shared dir)
+        ├── CodeBuddy     symlink / official installer
+        ├── Qoder CN      symlink
+        └── OpenCode      symlink / scans the shared dir
+
+~/.agents/mcp.json               ← shared MCP source of truth
+        │   (codegraph · exa · context7 · searchcode)
+        ├── Pi            reads it directly
+        ├── CodeBuddy     mirrored into ~/.codebuddy/mcp.json
+        ├── Qoder CN      mirrored into ~/.qoder-cn/settings.json
+        └── OpenCode      mirrored into ~/.config/opencode/opencode.jsonc
+```
+
+A skill adapter in a harness directory is in exactly one of six states —
+`shared` (the shared source itself), `symlink` (link into the shared source),
+`managed-copy` (an official installer's copy, provenance verified via
+`~/.agents/.skill-lock.json` or byte-equality), `foreign-copy` (provenance not
+establishable), `broken`, `absent`. Only `foreign-copy`/`broken` warn; a copy
+is never a duplicated capability — the CLI/MCP bodies (`bsk`, `ocr`,
+`codegraph`) exist exactly once on PATH.
 
 ## Quickstart
 
 ```bash
-# 1. Environment readiness (read-only)
+# 0. single entrypoint (optional; every subcommand also works on its own)
+./bin/agent-toolbox --help
+
+# 1. environment readiness + validation + drift — all read-only
 ./scripts/bootstrap.sh
-
-# 2. Validate the registry (schema, ids, scopes, secrets) — read-only
 ./scripts/validate.sh
-
-# 3. Check manifest <-> lock (want vs have) — read-only
 ./scripts/sync.sh
 
-# 4. See what's actually installed vs declared (read-only)
-./scripts/status.sh
+# 2. what can do what, where — read-only
+./bin/agent-toolbox capabilities          # per-capability adapter status
+./bin/agent-toolbox capabilities --grid   # capability x harness matrix
+./bin/agent-toolbox status                # capability view + V1 counts + drift
+./bin/agent-toolbox doctor                # CLI / skill / MCP / adapter health
 
-# 5. Preview what would change — dry-run by default
-./scripts/install.sh global
-./scripts/install.sh project agent-engineering-lab --target /path/to/repo
+# 3. attach a capability to a harness — dry-run by default
+./bin/agent-toolbox install browser --harness codebuddy
+./bin/agent-toolbox install code-review --harness pi
+./bin/agent-toolbox install code-intelligence --all-harnesses
+./bin/agent-toolbox install browser --harness codebuddy --apply   # actually do it
 
-# 6. Apply a profile (backup first, add-only) — explicit
-./scripts/install.sh global --apply
+# 4. profiles (V1, unchanged) + shared layer
+./scripts/install.sh global --apply      # Pi profile -> ~/.pi/agent
+./scripts/install.sh shared --apply      # shared MCP -> ~/.agents/mcp.json
 
-# 7. Check upstream for newer versions (network, read-only)
-./scripts/check-updates.sh
+# 5. updates — read-only report, explicit apply
+./bin/agent-toolbox update
+./bin/agent-toolbox update --apply
 
-# 8. Run the whole test suite (on an isolated copy)
+# 6. tests (isolated copy + fake $HOME)
 bash tests/run-tests.sh
 ```
 
+## What install actually does
+
+`install <capability> --harness <id>` **never downloads a tool**. It:
+
+1. prints the plan (dry-run unless `--apply`);
+2. checks the capability CLI exists (`bsk`, `ocr`, `codegraph`);
+3. checks the target harness is present;
+4. attaches the adapter — *official installer* (`bsk install-skill …`,
+   `npx skills add …`) or a *symlink* into `~/.agents/skills`;
+5. mirrors the shared MCP definition into the harness's native config,
+   add-only, with a backup (`<file>.atb-backup.<ts>`);
+6. verifies, then appends to `state/install-log.jsonl`;
+7. rolls back the file it wrote if verification fails.
+
+It is **idempotent**: a second run reports "already in sync" and touches nothing.
+It **never creates a project-local `.pi/mcp.json`** unless you pass
+`--scope project --project <name>` explicitly.
+
 ## Everyday loop
 
-| I want to…                                  | Command / workflow                          |
-| ------------------------------------------- | ------------------------------------------- |
-| Know my environment is ready                 | `./scripts/bootstrap.sh`                    |
-| Make sure the registry is well-formed        | `./scripts/validate.sh`                     |
-| See drift between manifest vs lock           | `./scripts/sync.sh`                         |
-| See drift between live machine vs manifest   | `./scripts/status.sh`                       |
-| Install/add config on a machine              | `./scripts/install.sh global --apply`       |
-| Find newer versions                          | `./scripts/check-updates.sh`                |
-| Get a reviewable update PR                   | weekly `.github/workflows/check-updates.yml` |
-| Add a resource                               | `docs/adding-resources.md`                  |
+| I want to… | Command |
+| --- | --- |
+| Know the machine is ready | `./scripts/bootstrap.sh` |
+| Make sure the registry is well-formed | `./scripts/validate.sh` |
+| See want vs have drift | `./scripts/sync.sh` |
+| See the capability/harness picture | `./bin/agent-toolbox capabilities` |
+| Health-check CLIs, skills, MCP, adapters | `./bin/agent-toolbox doctor` |
+| See live vs want drift (V1) | `./scripts/status.sh` |
+| Attach a capability to a harness | `./bin/agent-toolbox install <cap> --harness <id> --apply` |
+| Find newer versions | `./scripts/check-updates.sh` |
+| Upgrade tools + refresh adapters | `./bin/agent-toolbox update --apply` |
+| Add a resource / capability | `docs/adding-resources.md` |
 
 ## Repo layout
 
 ```
-manifest.yaml          want  — every declared resource + profiles
-lock.yaml              have  — resolved versions/commits (regenerated)
-catalog/               local resource catalogs by kind
-profiles/global/       settings.json + mcp.json for ~/.pi/agent
-profiles/projects/*/   per-project settings.json + mcp.json
-scripts/               bootstrap/validate/status/sync/check-updates/install
-.lib/common.sh          YAML engine, jq helpers, flag parsing, exit codes
-resources/             local resource files (skills, extensions, ...) — optional
-.github/workflows/     validate.yml (gate), check-updates.yml (weekly PR)
-docs/                  architecture, manifest, scopes, update-policy, security, adding-resources
-tests/                 unit + integration, always run on an isolated copy
+manifest.yaml            want — capabilities, harnesses, resources, profiles
+lock.yaml                have — resolved versions (regenerated, never hand-edited)
+profiles/shared/         tool-agnostic shared layer   -> ~/.agents/
+profiles/global/         Pi harness profile           -> ~/.pi/agent/
+profiles/projects/*/     per-project profile          -> <repo>/.pi/
+catalog/                 human indexes by kind (skills, mcp, clis, ...)
+scripts/
+  capabilities.sh        capability overview (read-only)
+  doctor.sh              health check (read-only)
+  status.sh              capability view + V1 counts + drift (read-only)
+  sync.sh                want vs have drift + --write-lock
+  validate.sh            schema, cross-refs, secrets (read-only)
+  check-updates.sh       upstream probe + --apply (writes the repo only)
+  update.sh              tool + adapter update lifecycle (+ --reindex)
+  install.sh             profiles AND capability adapters (dry-run default)
+  bootstrap.sh           machine readiness (read-only)
+  lib/common.sh          YAML engine, jq helpers, flags, exit codes
+  lib/merge_config.py    the ONE add-only/backup-first JSON merge implementation
+  lib/capability.py      capability/adapter engine (resolve, plan, apply, doctor)
+bin/agent-toolbox        thin dispatcher -> scripts/*.sh
+state/                   machine-local install/update log (git-ignored)
+.github/workflows/       validate.yml (gate), check-updates.yml (weekly PR)
+docs/                    architecture, capabilities, harnesses, adapters,
+                         lifecycle, migration-pi-centric, manifest, scopes, ...
+tests/                   unit + integration, always on an isolated copy
 ```
 
 ## Core principles
 
-1. **Not another installer.** Packages are installed with Pi's native
-   `pi install` / `pi update -l`. The toolbox declares, checks, reports, and
-   applies config explicitly.
-2. **Safe by default.** `install.sh` and `sync.sh` are dry-run unless `--apply`;
-   every write is backed up; merges are add-only and preserve your existing
-   config.
-3. **CI never touches your machine.** The update workflow only probes upstream
-   and opens a PR. Merging updates the repo; installing is your explicit call.
-4. **Trust is gated.** Project-scoped resources load only through Pi's project
-   trust; executable resources are flagged for security review in PRs.
-5. **Everything is diffable.** `lock.yaml`, `resolution`, and the update report
-   make every bump auditable.
+1. **Capability first.** Tools belong to the capability layer, never to an
+   agent. Skills and configs are thin, disposable adapters.
+2. **CLI / MCP is the body; Skill is the map.** The toolbox never becomes the
+   distribution channel for a tool.
+3. **Single source of truth.** One capability definition, one shared skill copy,
+   one shared MCP definition — many adapters. No per-harness tool copies.
+4. **Official installers win.** Where a capability ships its own installer, the
+   toolbox delegates to it instead of re-implementing downloads.
+5. **Safe by default.** Dry-run unless `--apply`; backup before every write;
+   add-only merges that preserve anything you already configured; verify and
+   roll back on failure; every mutation is logged.
+6. **Never re-create project MCP.** Global shared MCP is the default;
+   project-local isolation is an explicit `--scope project`.
+7. **CI never touches your machine.** Workflows only read, and (in
+   `check-updates.yml`) write this repo and open a PR.
+8. **Lightweight on purpose.** Shell + YAML + JSON + one Python engine — no
+   database, RPC, daemon, plugin host or UI.
 
 See `docs/`:
-[architecture](docs/architecture.md) · [manifest](docs/manifest.md) ·
-[scopes](docs/scopes.md) · [update-policy](docs/update-policy.md) ·
-[security](docs/security.md) · [adding-resources](docs/adding-resources.md)
+[architecture](docs/architecture.md) ·
+[capabilities](docs/capabilities.md) ·
+[harnesses](docs/harnesses.md) ·
+[adapters](docs/adapters.md) ·
+[lifecycle](docs/lifecycle.md) ·
+[migration-pi-centric](docs/migration-pi-centric.md) ·
+[manifest](docs/manifest.md) ·
+[scopes](docs/scopes.md) ·
+[update-policy](docs/update-policy.md) ·
+[security](docs/security.md) ·
+[adding-resources](docs/adding-resources.md)
 
 ## Development
 
 ```bash
 bash tests/run-tests.sh      # full suite on an isolated copy + fake HOME
 bash scripts/validate.sh     # gate used by CI
+bash scripts/sync.sh         # no drift
 ```
 
 `AGENTS.md` documents the conventions for working on the toolbox itself.

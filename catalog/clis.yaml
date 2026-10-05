@@ -1,0 +1,47 @@
+# =============================================================================
+# catalog/clis.yaml
+# -----------------------------------------------------------------------------
+# Browsable reference registry of capability CLIs.
+# The source of truth is manifest.yaml (`resources.clis`); this is a curated
+# index for humans and agents. A CLI is the BODY of a capability — the skill /
+# MCP entries in the other catalogs are only the harness-facing adapters.
+# =============================================================================
+schema_version: 1
+kind: cli
+
+entries:
+  - id: bsk
+    name: bsk
+    scope: global
+    managed: true
+    capability: browser
+    role: capability body (CLI)
+    version_cmd: bsk --version
+    updater: bsk update
+    summary: Drive the user's logged-in Chromium browser + extension.
+    path: ~/.local/bin/bsk
+
+  - id: ocr
+    name: ocr
+    scope: global
+    managed: true
+    capability: code-review
+    role: capability body (CLI)
+    version_cmd: ocr --version
+    updater: npm install -g @alibaba-group/open-code-review
+    summary: AI-powered line-level code review on git changes.
+    path: ~/.hermes/node/bin/ocr
+
+  - id: codegraph-cli
+    name: codegraph
+    scope: global
+    managed: true
+    capability: code-intelligence
+    role: capability body (CLI + MCP server)
+    version_cmd: codegraph --version
+    updater: codegraph upgrade
+    summary: Code navigation CLI; also serves the codegraph MCP over stdio.
+    path: ~/.hermes/node/bin/codegraph
+    notes: >-
+      One binary, two dimensions (cli + mcp). Index freshness is independent of
+      the binary version — see docs/lifecycle.md.

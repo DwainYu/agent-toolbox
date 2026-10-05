@@ -19,13 +19,17 @@ pr-body.md
 *.log
 *.tmp
 
-# --- editors / OS -----------------------------------------------------------
+# --- machine-local state (append-only install/update log) ------------------
+state/
+
+# --- editors / OS / local CLI settings --------------------------------------
 .DS_Store
 Thumbs.db
 *.swp
 *~
 .idea/
 .vscode/
+.qoder/
 
 # --- python ----------------------------------------------------------------
 __pycache__/

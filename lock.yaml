@@ -1,5 +1,31 @@
 schema_version: 1
 resources:
+  bsk:
+    requested:
+      source: manual
+      ref: ''
+    resolved:
+      version: 0.3.0
+      commit: ''
+    checked_at: '2026-10-04'
+  ocr:
+    requested:
+      source: npm
+      package: '@alibaba-group/open-code-review'
+      ref: 1.12.12
+    resolved:
+      version: 1.12.12
+      commit: ''
+    checked_at: '2026-10-05'
+  codegraph-cli:
+    requested:
+      source: npm
+      package: '@colbymchenry/codegraph'
+      ref: 1.6.0
+    resolved:
+      version: 1.6.0
+      commit: ''
+    checked_at: '2026-10-04'
   browser-skill:
     requested:
       source: manual
@@ -73,13 +99,12 @@ resources:
     checked_at: 2026-10-02
   codegraph:
     requested:
-      source: npm
-      package: '@colbymchenry/codegraph'
-      ref: 1.6.0
+      source: manual
+      ref: ''
     resolved:
-      version: 1.6.0
+      version: ''
       commit: ''
-    checked_at: '2026-10-02'
+    checked_at: '2026-10-04'
   orca-agent-status:
     requested:
       source: github

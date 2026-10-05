@@ -122,7 +122,7 @@ skipped = 0
 errors = []
 
 def is_executable(kind):
-    return kind in ("extension", "package", "mcp")
+    return kind in ("extension", "package", "mcp", "cli")
 
 for group, items in (MANIFEST.get("resources") or {}).items():
     for res in items:
@@ -233,8 +233,9 @@ else:
     print("Agent Toolbox Update Check")
     print("")
     labels = {"skill": "Skills", "mcp": "MCP", "extension": "Extensions",
-              "package": "Packages", "prompt": "Prompts", "theme": "Themes"}
-    for kind in ("skill", "mcp", "extension", "package", "prompt", "theme"):
+              "package": "Packages", "prompt": "Prompts", "theme": "Themes",
+              "cli": "CLIs"}
+    for kind in ("skill", "mcp", "extension", "package", "prompt", "theme", "cli"):
         us = [u for u in updates if u["kind"] == kind]
         if not us:
             continue

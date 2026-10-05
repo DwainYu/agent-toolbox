@@ -16,6 +16,19 @@ Each resource declares how aggressively it should be updated:
 | `monthly`  | Checked monthly.                                                       |
 | `pin`      | Frozen. `check-updates` never proposes a change, even if upstream moved. |
 
+Policy applies to the resource's **kind**, which decides *what* gets updated:
+
+- `kind: cli` — a **tool update**: `check-updates.sh` probes npm (or leaves
+  `source.type: manual` alone), `update.sh --apply` upgrades the binary via its
+  official installer (`npm i -g`, `codegraph upgrade`, ...).
+- `kind: skill` / `kind: mcp` — an **adapter/config update**: usually pinned or
+  manual, and applied by re-running `install.sh --apply` (re-mirroring shared
+  config), never by re-downloading the tool itself.
+
+One version record per tool: the CLI record owns the version; the MCP/skill
+adapters that wrap the same tool don't carry a competing `resolution.version`
+(see `docs/lifecycle.md`).
+
 The default workflow ships a **weekly** cron (`.github/workflows/check-updates.yml`).
 Bump a resource to `daily` or `monthly` only if you genuinely want that cadence.
 
@@ -28,6 +41,7 @@ Bump a resource to `daily` or `monthly` only if you genuinely want that cadence.
 | Open a reviewable change    | `.github/workflows/check-updates.yml` (weekly) | No — opens a PR. |
 | Promote to main             | You, after reviewing + merging | No — merge only updates the repo. |
 | Install to the machine      | `install.sh --apply`        | **Yes** — only when you run it. |
+| Upgrade a tool / re-sync adapters | `update.sh --apply`    | **Yes** — only when you run it; never in CI. |
 
 Key property: **CI never modifies your real environment.** The weekly workflow
 only probes upstream, applies the resolution to the repo, and opens a PR. You

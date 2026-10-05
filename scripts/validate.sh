@@ -14,6 +14,10 @@
 #   9. broken local paths (under resources/ and manifest local sources)
 #  10. invalid package declaration
 #  11. invalid MCP definition (needs url OR command+args)
+#  12. harness adapter registry (harnesses:) — ids, strategies, formats, paths
+#  13. capability registry (capabilities:) — dimensions, cross-refs into
+#      resources/harnesses, installer templates, harness overrides
+#  14. profile capabilities reference real capabilities; profile config files exist
 #
 # Exit codes: 0 = valid, 2 = validation failure.
 #   --json   emit a machine-readable JSON report
@@ -58,12 +62,19 @@ else:
         err(f"manifest.yaml does not parse: {e}")
         manifest = {}
 
-allowed_kinds = {"skill", "mcp", "extension", "package", "prompt", "theme"}
+allowed_kinds = {"skill", "mcp", "extension", "package", "prompt", "theme", "cli"}
 allowed_groups = {"skills": "skill", "mcp": "mcp", "extensions": "extension",
-                  "packages": "package", "prompts": "prompt", "themes": "theme"}
+                  "packages": "package", "prompts": "prompt", "themes": "theme",
+                  "clis": "cli"}
 allowed_scopes = {"global", "project"}
 allowed_sources = {"local", "git", "github", "npm", "url", "builtin", "manual"}
 allowed_policies = {"manual", "daily", "weekly", "monthly", "pin"}
+allowed_skill_strategies = {"shared", "symlink", "installer"}
+allowed_mcp_strategies = {"shared", "native", "profile"}
+allowed_mcp_formats = {"mcpServers", "opencode-mcp"}
+allowed_mcp_definitions = {"shared", "profile-global"}
+allowed_harness_status = {"active", "planned"}
+allowed_transports = {"stdio", "http", "sse"}
 skill_re = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 
 if manifest:
@@ -129,6 +140,169 @@ if manifest:
                     p = os.path.expanduser(lp)
                     if not os.path.exists(p):
                         err(f"{rid}: local source path does not exist: {lp}")
+
+# ------------------------------------------------------- harness adapter registry
+harness_ids = {}
+if manifest:
+    hs = manifest.get("harnesses")
+    if hs is None:
+        hs = {}
+    if not isinstance(hs, dict):
+        err("harnesses must be a mapping of <harness-id>: {...}")
+        hs = {}
+    for hid, h in sorted(hs.items()):
+        if not isinstance(h, dict):
+            err(f"harness '{hid}' must be a mapping")
+            continue
+        if h.get("id", hid) != hid:
+            err(f"harness '{hid}': id '{h.get('id')}' does not match its key")
+        if not h.get("config_root"):
+            err(f"harness '{hid}': missing config_root")
+        if h.get("status", "active") not in allowed_harness_status:
+            err(f"harness '{hid}': invalid status '{h.get('status')}'")
+        if h.get("skill_strategy") not in allowed_skill_strategies:
+            err(f"harness '{hid}': invalid skill_strategy '{h.get('skill_strategy')}'")
+        if h.get("mcp_strategy") not in allowed_mcp_strategies:
+            err(f"harness '{hid}': invalid mcp_strategy '{h.get('mcp_strategy')}'")
+        if h.get("mcp_format") not in allowed_mcp_formats:
+            err(f"harness '{hid}': invalid mcp_format '{h.get('mcp_format')}'")
+        if h.get("mcp_strategy") == "native" and not h.get("mcp_file"):
+            err(f"harness '{hid}': mcp_strategy 'native' requires mcp_file")
+        if h.get("skill_strategy") in ("symlink", "installer") and not h.get("skill_dir"):
+            err(f"harness '{hid}': skill_strategy '{h.get('skill_strategy')}' requires skill_dir")
+        if h.get("installer_ids") and not isinstance(h.get("installer_ids"), dict):
+            err(f"harness '{hid}': installer_ids must be a mapping")
+        harness_ids[hid] = h
+
+# ---------------------------------------------------------- capability registry
+caps = {}
+if manifest:
+    raw_caps = manifest.get("capabilities")
+    if raw_caps is None:
+        raw_caps = {}
+    if not isinstance(raw_caps, dict):
+        err("capabilities must be a mapping of <capability-id>: {...}")
+        raw_caps = {}
+    caps = raw_caps
+    for cid, c in sorted(caps.items()):
+        if not isinstance(c, dict):
+            err(f"capability '{cid}' must be a mapping")
+            continue
+        if c.get("id", cid) != cid:
+            err(f"capability '{cid}': id '{c.get('id')}' does not match its key")
+        if not c.get("name"):
+            err(f"capability '{cid}': missing name")
+        if not c.get("description"):
+            err(f"capability '{cid}': missing description")
+        cli, skills, mcp = c.get("cli"), c.get("skills"), c.get("mcp")
+        if not (cli or skills or mcp):
+            err(f"capability '{cid}': declares no cli, skills or mcp dimension")
+        if cli:
+            if not isinstance(cli, dict) or not cli.get("command"):
+                err(f"capability '{cid}': cli.command is required")
+            else:
+                r = cli.get("resource")
+                grp = seen_ids.get(r) if r else None
+                if not r:
+                    err(f"capability '{cid}': cli.resource is required")
+                elif grp is None:
+                    err(f"capability '{cid}': cli.resource '{r}' is not in manifest resources")
+                elif grp != "clis":
+                    err(f"capability '{cid}': cli.resource '{r}' must live in the clis group (got '{grp}')")
+                up = cli.get("updater")
+                if up is not None and (not up.get("command") or not isinstance(up.get("args"), list)):
+                    err(f"capability '{cid}': cli.updater needs command + args list")
+        if skills is not None:
+            if not isinstance(skills, list) or not skills:
+                err(f"capability '{cid}': skills must be a non-empty list")
+            else:
+                for s in skills:
+                    if not isinstance(s, dict):
+                        err(f"capability '{cid}': skills entry must be a mapping")
+                        continue
+                    r = s.get("resource")
+                    grp = seen_ids.get(r) if r else None
+                    if not r:
+                        err(f"capability '{cid}': skills entry missing resource")
+                    elif grp is None:
+                        err(f"capability '{cid}': skills.resource '{r}' is not in manifest resources")
+                    elif grp != "skills":
+                        err(f"capability '{cid}': skills.resource '{r}' must live in the skills group (got '{grp}')")
+                    if not s.get("shared_path"):
+                        err(f"capability '{cid}': skills entry '{r}' missing shared_path (single source of truth)")
+        if mcp is not None:
+            if not isinstance(mcp, dict):
+                err(f"capability '{cid}': mcp must be a mapping")
+            else:
+                if not mcp.get("server_name"):
+                    err(f"capability '{cid}': mcp.server_name is required")
+                if mcp.get("definition") not in allowed_mcp_definitions:
+                    err(f"capability '{cid}': mcp.definition must be one of {sorted(allowed_mcp_definitions)}")
+                if mcp.get("transport") is not None and mcp.get("transport") not in allowed_transports:
+                    err(f"capability '{cid}': invalid mcp.transport '{mcp.get('transport')}'")
+        inst = c.get("installer")
+        if inst is not None:
+            if not isinstance(inst, dict) or not inst.get("command"):
+                err(f"capability '{cid}': installer.command is required")
+            elif not isinstance(inst.get("args"), list) or not inst.get("id"):
+                err(f"capability '{cid}': installer needs id + args list")
+            elif "{id}" not in " ".join(str(a) for a in inst["args"]):
+                err("capability '" + cid + "': installer.args must contain the "
+                    "'{id}' harness-id placeholder")
+        hc = c.get("harnesses")
+        if not isinstance(hc, dict) or not hc:
+            err(f"capability '{cid}': must declare a non-empty harnesses mapping")
+        else:
+            for hid, ov in sorted(hc.items()):
+                if hid not in harness_ids:
+                    err(f"capability '{cid}': unknown harness '{hid}'")
+                    continue
+                if not isinstance(ov, dict):
+                    err(f"capability '{cid}': harness override '{hid}' must be a mapping")
+                    continue
+                ss, ms = ov.get("skill_strategy"), ov.get("mcp_strategy")
+                if ss is not None and ss not in allowed_skill_strategies:
+                    err(f"capability '{cid}': harness '{hid}' invalid skill_strategy '{ss}'")
+                if ms is not None and ms not in allowed_mcp_strategies:
+                    err(f"capability '{cid}': harness '{hid}' invalid mcp_strategy '{ms}'")
+                if skills and not (ss or harness_ids[hid].get("skill_strategy")):
+                    err(f"capability '{cid}': harness '{hid}' has no resolvable skill_strategy")
+                if mcp and not (ms or harness_ids[hid].get("mcp_strategy")):
+                    err(f"capability '{cid}': harness '{hid}' has no resolvable mcp_strategy")
+
+# ------------------------------------------------- profile <-> capability refs
+if manifest:
+    profiles = manifest.get("profiles") or {}
+
+    def _check_profile_caps(lst, where):
+        if lst is None:
+            return
+        if not isinstance(lst, list):
+            err(f"{where}: must be a list of capability ids")
+            return
+        for c in lst:
+            if c not in caps:
+                err(f"{where}: unknown capability '{c}'")
+
+    _check_profile_caps((profiles.get("global") or {}).get("capabilities"),
+                        "profiles.global.capabilities")
+    for pname, p in sorted((profiles.get("projects") or {}).items()):
+        _check_profile_caps(p.get("capabilities"), f"profiles.projects.{pname}.capabilities")
+    # every config file referenced by a profile must exist
+    def _check_profile_files(cfg, where):
+        if not isinstance(cfg, dict):
+            return
+        for key, rel in cfg.items():
+            if not isinstance(rel, str):
+                continue
+            if key in ("skills", "extensions") or rel.startswith("~"):
+                continue
+            if not os.path.exists(os.path.join(root, rel)):
+                err(f"{where}: referenced config file missing: {rel}")
+    _check_profile_files((profiles.get("shared") or {}).get("config"), "profiles.shared")
+    _check_profile_files((profiles.get("global") or {}).get("config"), "profiles.global")
+    for pname, p in sorted((profiles.get("projects") or {}).items()):
+        _check_profile_files(p.get("config"), f"profiles.projects.{pname}")
 
 # -------------------------------------------------------------------- lock
 lock_path = os.path.join(root, "lock.yaml")

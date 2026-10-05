@@ -1,93 +1,143 @@
 # agent-toolbox architecture
 
-`agent-toolbox` is a **personal Agent resource registry + configuration + update
-manager**. It treats the user's Pi coding-agent environment as a set of declared,
-versioned resources: skills, MCP servers, Pi extensions, Pi packages, prompt
-templates (reserved), plus global and per-project configuration. Everything the
-user wants is recorded in one place (`manifest.yaml`); what is actually resolved
-is recorded in `lock.yaml`; and the machine state is derived from both.
+`agent-toolbox` is a **capability & harness-adapter registry**. It describes the
+capabilities you own (BrowserSkill, OpenCodeReview, CodeGraph, …), the agent
+harnesses you run (Pi, CodeBuddy, Qoder CN, OpenCode, …), and the thin adapters
+that connect them — and it applies those adapters explicitly, reversibly and
+idempotently.
 
-The toolbox does **not** reimplement Pi's installers. It declares, checks,
-reports, and (only when asked) applies configuration — and it hands package
-installation to Pi's own native `pi install` / `pi update`.
+It does **not** redistribute tools. A capability's CLI is installed by its own
+upstream (`bsk update`, `npm install -g`, `codegraph upgrade`); a shared skill
+is created by its official installer (`bsk install-skill`, `npx skills add`);
+the toolbox only checks, links, mirrors, verifies and records.
 
-## Core idea: want vs have vs resolved
-
-| Concept   | File / source              | Meaning                                             |
-| --------- | -------------------------- | --------------------------------------------------- |
-| **Want**  | `manifest.yaml`            | Declared resources + profiles the user wants.       |
-| **Have**  | `lock.yaml`                | Resolved versions / commits actually available.     |
-| **Live**  | `~/.pi/agent/`, project `.pi/` | What's installed on a given machine.            |
-
-The distance between these three is **drift**. `scripts/sync.sh` compares
-*want vs have* and reports drift; `scripts/status.sh` compares *live vs want* and
-reports what is missing/mismatched; `scripts/check-updates.sh` compares *have vs
-upstream* and proposes updates.
-
-## Layers
+## The model
 
 ```
-manifest.yaml  (want)                      lock.yaml (have)
-  resources:
-    skills / mcp / extensions / packages / prompts / themes
-  profiles:
-    global / project:<name>
-      profiles/global/settings.json, mcp.json
-      profiles/projects/<name>/settings.json, mcp.json
-        |
-        v  (declare / resolve / check)
-   scripts/
-     bootstrap.sh   machine readiness check (read-only)
-     validate.sh    schema + secret validation (read-only)
-     status.sh      live vs want summary (read-only)
-     sync.sh        want vs have drift + --write-lock (read-only / lock only)
-     check-updates.sh  upstream probe + --apply (network; writes manifest+lock+report)
-     install.sh     apply a profile to a machine (default dry-run; --apply writes)
-   lib/common.sh    YAML->JSON engine, jq helpers, flag parser, exit codes
-        |
-        v
-   .github/workflows/
-     validate.yml        PR / push gate
-     check-updates.yml   weekly upstream probe -> update PR
-   docs/                architecture, manifest, scopes, update-policy, security, adding-resources
-   tests/               unit + integration (always run on an isolated copy)
+Capability ──(CLI / MCP)──> Adapter ──> Harness
+   what to attach           how to attach   where it is consumed
 ```
 
-## Data model
+| Layer | Question it answers | Declared in |
+| --- | --- | --- |
+| **Capability** | *What* can my agents do? | `manifest.yaml` → `capabilities:` |
+| **CLI / MCP** | *What body* implements it, which version? | `resources.clis`, `resources.mcp` + `lock.yaml` |
+| **Skill** | *How does a harness discover it?* | `resources.skills` |
+| **Harness** | *Where does it run, and what file layout does it use?* | `manifest.yaml` → `harnesses:` |
+| **Adapter** | *Which strategy joins this capability to this harness?* | `capabilities.<cap>.harnesses.<hid>` |
+| **Profile** | *Which config snapshot lands on disk?* | `profiles/**` |
 
-- **resource** — one entry in `manifest.yaml` under a resource group. Has an
-  `id`, `kind`, `scope`, `source`, `resolution`, `update`, `security`, `install`,
-  `tags`, `notes`. See `docs/manifest.md`.
-- **group** — `skills`, `mcp`, `extensions`, `packages`, `prompts` (reserved),
-  `themes` (reserved). A group entry's `kind` must match the group.
-- **manifest-feed** — optional remote URL that supplies declared resources; the
-  toolbox can pull a catalog from a remote feed in addition to the local
-  `catalog/`. (Reserved / optional in v1; see `docs/adding-resources.md`.)
-- **profile** — a concrete config snapshot. `profiles/global/` and
-  `profiles/projects/<name>/` contain the `settings.json` and `mcp.json` Pi
-  loads.
+A Skill is deliberately **not** the tool. `browser-skill` teaches a harness to
+call `bsk`; delete every skill and the capability still works from a shell.
+`bsk`, `ocr` and `codegraph` are the capability bodies.
+
+## Want vs have vs live
+
+| Concept | File / source | Meaning |
+| --- | --- | --- |
+| **Want** | `manifest.yaml` | Declared capabilities, harnesses, resources, profiles. |
+| **Have** | `lock.yaml` | Resolved versions/commits the registry last recorded. |
+| **Live** | `~/.agents/`, `~/.pi/agent/`, `~/.codebuddy/`, `~/.qoder-cn/`, `~/.config/opencode/` | What is actually wired on this machine. |
+
+Distance between them is **drift**:
+
+- `scripts/sync.sh` — want vs have (manifest ↔ lock)
+- `scripts/doctor.sh` — want vs live (CLI / skills / MCP / adapters)
+- `scripts/status.sh` — the combined view
+- `scripts/check-updates.sh` — have vs upstream (npm / git)
+- `scripts/update.sh` — live vs upstream + adapter refresh
+
+## The shared layer is the pivot
+
+```
+                       ~/.agents/                     (tool-agnostic)
+                 ┌──────────────────────┐
+                 │  skills/             │  one copy of every shared skill
+                 │   browser-skill      │
+                 │   open-code-review   │
+                 │   open-code-review-  │
+                 │     delegate         │
+                 │  mcp.json            │  shared MCP source of truth,
+                 │                      │  one definition per server
+                 └──────────────────────┘
+                        ▲       │
+        official        │       │  read / mirrored add-only
+        installers      │       ▼
+   bsk install-skill    │    harness native config
+   npx skills add       │    ~/.pi/agent/mcp.json            (legacy V1, emptied — Pi reads shared directly)
+                        │    ~/.codebuddy/mcp.json
+                        │    ~/.qoder-cn/settings.json
+                        │    ~/.config/opencode/opencode.jsonc
+                        │
+                 harness skill dirs hold only links
+                 (~/.codebuddy/skills/x -> ~/.agents/skills/x)
+```
+
+Rule: **the harness never owns a second copy of a capability.** A skill
+directory inside a harness may legally be a `symlink`, or a `managed-copy` the
+official installer produced (provenance verified via `~/.agents/.skill-lock.json`
+or byte-equality with the shared source — see
+[adapters.md](adapters.md#the-six-adapter-states)). Anything else —
+`foreign-copy` / `broken` — `doctor` reports as a warning and the fix is the
+official installer; the toolbox does not silently delete your files.
+
+## Layout of the registry
+
+```yaml
+toolbox:      # name, shared_root (~/.agents), model: capability
+harnesses:    # adapter registry: paths + default strategies per harness
+capabilities: # capability registry: cli / skills / mcp / installer / harness wiring
+resources:    # single source of truth for sources + versions
+  clis/ skills/ mcp/ extensions/ packages/ prompts/ themes
+profiles:     # shared -> ~/.agents | global -> ~/.pi/agent | projects -> <repo>/.pi
+```
+
+`capabilities` and `harnesses` are **additive** sections: they reference
+`resources` by id and never duplicate an upstream URL or version, so V1's
+lock/sync/update machinery keeps working unchanged.
 
 ## Scripts contract
 
-Every script in `scripts/` uses a common exit-code convention:
+| Code | Meaning |
+| --- | --- |
+| `0` | OK / in sync / nothing to do / healthy |
+| `1` | updates or issues found / drift / actions reported |
+| `2` | configuration or validation failure |
 
-| Code | Meaning                                          |
-| ---- | ------------------------------------------------ |
-| `0`  | OK / no updates / in sync                        |
-| `1`  | Updates available (or applied) / drift found     |
-| `2`  | Configuration / validation failure               |
+| Script | Reads | Writes | Default mode |
+| --- | --- | --- | --- |
+| `bootstrap.sh` | machine | — | read-only |
+| `validate.sh` | manifest, lock, profiles | — | read-only |
+| `sync.sh` | manifest, lock | `lock.yaml` only with `--write-lock` | read-only |
+| `capabilities.sh` | manifest + live probe | — | read-only |
+| `doctor.sh` | everything | — | read-only, never fixes |
+| `status.sh` | manifest, lock, live | — | read-only |
+| `check-updates.sh` | upstream (npm/git) | `manifest.yaml`, `lock.yaml`, `CHANGELOG/update-report.json` with `--apply` | repo only |
+| `update.sh` | upstream + live | machine **and** repo with `--apply` | dry-run |
+| `install.sh` | manifest + profiles | machine with `--apply` | dry-run |
 
-Default mode is **safe**: `install.sh` and `check-updates.sh --apply` only change
-the machine or write the repo when explicitly requested. The only script that
-writes to this repo directly is `check-updates.sh --apply`; the only one that
-writes to `~/.pi/agent` or a project dir is `install.sh --apply`.
+Implementation split:
+
+- `scripts/lib/common.sh` — YAML engine, jq helpers, flag parsing, exit codes.
+- `scripts/lib/merge_config.py` — **the one** add-only / backup-first JSON merge
+  used by both profile installs and MCP adapter mirrors.
+- `scripts/lib/capability.py` — resolve → plan → apply → verify for
+  `matrix / install / doctor / update`.
+
+## Safety invariants
+
+1. Dry-run by default; `--apply` is the only thing that writes.
+2. Back up before every write: `<file>.atb-backup.<ts>`.
+3. Add-only merges: anything you configured that differs is preserved.
+4. Verify after writing; restore the backup if verification fails.
+5. Never clobber an existing path (symlinks, copies, configs).
+6. Never create `project/.pi/mcp.json` without an explicit `--scope project`.
+7. Every mutation is appended to `state/install-log.jsonl` (git-ignored).
+8. CI only reads this repo (and opens a PR); it never runs `install.sh
+   --apply` or `update.sh --apply` against a real machine.
 
 ## Isolation & reproducibility
 
-- Tests never mutate the real checkout: `tests/run-tests.sh` copies the repo to a
-  temp dir and uses a fake `$HOME`.
-- GitHub Actions only ever reads the repo and (in the update workflow) commits the
-  resolved `manifest.yaml` / `lock.yaml` / `update-report.json` into a PR. The
-  actions never run `pi install` on any managed machine, so your live environment
-  is never changed by CI.
-- Driven by `AGENTS.md` conventions for how the toolbox itself should be worked on.
+- Tests copy the repo to a temp dir and use a fake `$HOME`, so `install.sh
+  --apply` and `update.sh --apply` exercise throwaway data.
+- `AGENTS.md` holds the conventions for working on the toolbox itself.

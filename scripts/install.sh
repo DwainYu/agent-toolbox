@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 # =============================================================================
-# install.sh — apply toolbox profiles to the live environment (explicit only)
+# install.sh — apply profiles / capabilities to the live environment
 #
+# Profile mode (V1, unchanged):
 #   ./scripts/install.sh global                     dry-run preview
-#   ./scripts/install.sh global --dry-run           dry-run preview
-#   ./scripts/install.sh global --apply             actually write ~/.pi/agent/
+#   ./scripts/install.sh global --apply             write ~/.pi/agent/
 #   ./scripts/install.sh project <name> [--target /path] [--dry-run|--apply]
+#   ./scripts/install.sh shared [--apply]           write ~/.agents/mcp.json
 #
-# Principles:
+# Capability mode (V2, thin adapter install):
+#   ./scripts/install.sh browser --harness codebuddy
+#   ./scripts/install.sh code-review --harness pi
+#   ./scripts/install.sh code-intelligence --harness opencode
+#   ./scripts/install.sh browser --all-harnesses
+#   ./scripts/install.sh <capability> --scope project --project <name> --target /path
+#       ^ project-local MCP is an EXPLICIT opt-in; it is never created by default
+#
+# Principles (both modes):
 #   * NEVER overwrite unknown/existing configuration. We only ADD what the
 #     profile declares and is missing. Existing differing values are preserved.
 #   * Idempotent: running again is a no-op when already in sync.
 #   * Backup before any write (<file>.atb-backup.<ts>).
 #   * Default is dry-run; you must pass --apply to change the machine.
+#   * Capability installs delegate to official installers (bsk, npx skills)
+#     or create links into ~/.agents/skills — never a second copy of a tool.
 #
 # Exit codes: 0 ok, 2 config error.
 # =============================================================================
@@ -22,131 +33,41 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 parse_flags "$@"
 command -v python3 >/dev/null 2>&1 || die "install.sh requires python3"
 
-if [[ "${ATB_POS[0]:-}" == "global" ]]; then
+# Is $1 a declared capability id? -> capability mode (scripts/lib/capability.py).
+# The ORIGINAL argv is handed over so capability.py can parse --harness,
+# --all-harnesses, --scope, --project, --target, --apply/--dry-run itself.
+first="${ATB_POS[0]:-}"
+if [[ -n "$first" && "$first" != "global" && "$first" != "project" && "$first" != "shared" ]]; then
+  if yqdata "$MANIFEST" --arg c "$first" \
+       'if ((.capabilities // {}) | has($c)) then "yes" else "no" end' 2>/dev/null | grep -qx yes; then
+    exec python3 "$SCRIPTS_DIR/lib/capability.py" install "$@"
+  fi
+fi
+
+if [[ "$first" == "global" ]]; then
   MODE="global"
-elif [[ "${ATB_POS[0]:-}" == "project" ]]; then
+elif [[ "$first" == "shared" ]]; then
+  MODE="shared"
+elif [[ "$first" == "project" ]]; then
   MODE="project"
   PROJECT="${ATB_POS[1]:-}"
   [[ -z "$PROJECT" ]] && die "usage: ./scripts/install.sh project <name> [--target /path]"
 else
-  die "usage: ./scripts/install.sh global|project <name> [flags]"
+  die "usage: ./scripts/install.sh global|shared|project <name> | <capability> --harness <id> [flags]"
 fi
 
 # ----------------------------------------------------------------------------
 # merge plan/apply in python
 # ----------------------------------------------------------------------------
 # merge_config <mode> <profile-json> <target-json> <ctype> <label>
-#   ctype: settings | mcp
+#   ctype: settings | mcp | mcp-opencode
 #   mode:  plan | apply
+# The add-only / backup-first logic lives in scripts/lib/merge_config.py so that
+# install.sh and the capability installer share exactly one merge implementation.
 merge_config() {
   local mode="$1" prof="$2" target="$3" ctype="$4" label="$5"
   die_if_not_file "$prof" "profile"
-  python3 - "$mode" "$prof" "$target" "$ctype" "$label" <<'PY'
-import sys, os, json, shutil, time
-mode, prof, target, ctype, label = sys.argv[1:6]
-
-try:
-    with open(prof) as fh:
-        profile = json.load(fh)
-except Exception as e:
-    print(f"ERROR: {label}: profile does not parse: {e}", file=sys.stderr)
-    sys.exit(2)
-
-target_data = {}
-if os.path.exists(target):
-    try:
-        with open(target) as fh:
-            target_data = json.load(fh)
-    except Exception as e:
-        print(f"ERROR: {label}: target does not parse: {e}", file=sys.stderr)
-        sys.exit(2)
-
-added = []      # identifiers that would be added
-preserved = []  # identifiers that already exist / differ (kept)
-modified = []   # files that would change
-
-if ctype == "settings":
-    prof_pkgs = profile.get("packages", [])
-    tgt_pkgs = target_data.get("packages", [])
-    for p in prof_pkgs:
-        if p not in tgt_pkgs:
-            added.append(p)
-        else:
-            preserved.append(p)
-    # theme: set only if target lacks it
-    if "theme" in profile and "theme" not in target_data:
-        added.append(f"theme={profile['theme']}")
-    elif "theme" in profile:
-        preserved.append(f"theme={target_data.get('theme','')}")
-    # extensions
-    for e in profile.get("extensions", []):
-        if e not in target_data.get("extensions", []):
-            added.append(f"extension:{e}")
-        else:
-            preserved.append(f"extension:{e}")
-    # other existing keys we never touch
-    for k in target_data:
-        if k not in ("packages", "theme", "extensions"):
-            preserved.append(f"key:{k} (user-owned, preserved)")
-    if added:
-        modified.append(target)
-
-elif ctype == "mcp":
-    prof_servers = profile.get("mcpServers", {})
-    tgt_servers = target_data.get("mcpServers", {})
-    for sid in prof_servers:
-        if sid not in tgt_servers:
-            added.append(sid)
-        elif tgt_servers[sid] != prof_servers[sid]:
-            preserved.append(f"{sid} (existing differs, preserved)")
-        else:
-            preserved.append(sid)
-    for sid in tgt_servers:
-        if sid not in prof_servers:
-            preserved.append(f"{sid} (unknown existing server, preserved)")
-    if added:
-        modified.append(target)
-
-# ---- output ---------------------------------------------------------------
-if mode == "apply":
-    if os.path.exists(target):
-        ts = time.strftime("%Y%m%d-%H%M%S")
-        shutil.copy2(target, f"{target}.atb-backup.{ts}")
-    if ctype == "settings":
-        new = dict(target_data)
-        new.setdefault("packages", [])
-        for p in added:
-            if p not in new["packages"] and not p.startswith("theme="):
-                new["packages"].append(p)
-        if "theme" in profile and "theme" not in new:
-            new["theme"] = profile["theme"]
-        if "extensions" in profile and "extensions" not in new:
-            new["extensions"] = profile["extensions"]
-        mode_json = json.dumps(new, indent=2, ensure_ascii=False) + "\n"
-    else:
-        new = dict(target_data)
-        new.setdefault("mcpServers", {})
-        for sid, cfg in profile.get("mcpServers", {}).items():
-            if sid not in new["mcpServers"]:
-                new["mcpServers"][sid] = cfg
-        mode_json = json.dumps(new, indent=2, ensure_ascii=False) + "\n"
-    os.makedirs(os.path.dirname(target), exist_ok=True)
-    with open(target, "w") as fh:
-        fh.write(mode_json)
-    for a in added:
-        print(f"  + {a}")
-    print(f"  wrote {target}")
-else:
-    if added:
-        print(f"Would modify: {target}")
-        for a in added:
-            print(f"  + {a}")
-    else:
-        print(f"Would leave unchanged: {target}")
-    if preserved:
-        for p in preserved:
-            print(f"  ~ preserve: {p}")
-PY
+  python3 "$SCRIPTS_DIR/lib/merge_config.py" "$mode" "$prof" "$target" "$ctype" "$label"
 }
 
 # ----------------------------------------------------------------------------
@@ -157,6 +78,30 @@ package_advice() {
   yqjson "$MANIFEST" '.resources.packages[] | select(.scope == "global") | "  pi install npm:" + (.source.package // .id) + "@" + (.source.ref // "")' \
     | sed 's/"//g'
 }
+
+# =============================================================================
+# SHARED — tool-agnostic layer (~/.agents/mcp.json)
+# This is the default home for shared MCP definitions. Harnesses either read it
+# directly (Pi) or mirror it into their native config (CodeBuddy/Qoder/OpenCode).
+# =============================================================================
+if [[ "$MODE" == "shared" ]]; then
+  target_dir="${HOME}/.agents"
+  src="${PROFILES_DIR}/shared/mcp.json"
+  if [[ "$ATB_DRY_RUN" == "1" || "$ATB_APPLY" != "1" ]]; then
+    echo "Dry run — nothing written. Pass --apply to write."
+    echo "Shared layer: ${target_dir}"
+    echo ""
+    merge_config plan "$src" "${target_dir}/mcp.json" mcp "shared mcp"
+    echo ""
+    echo "Shared skills are NOT copied here — they are owned by the official"
+    echo "installers (bsk install-skill / npx skills add)."
+    exit "$EXIT_OK"
+  fi
+  echo "Applying shared profile -> ${target_dir}"
+  merge_config apply "$src" "${target_dir}/mcp.json" mcp "shared mcp"
+  ok "Shared MCP layer applied."
+  exit "$EXIT_OK"
+fi
 
 # =============================================================================
 # GLOBAL

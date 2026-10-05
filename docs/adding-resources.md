@@ -1,16 +1,22 @@
 # Adding resources
 
-To register a new skill, MCP server, Pi extension, package, or (reserved) prompt
-template, add an entry to `manifest.yaml` under the matching resource group, and
+To register a new capability body (CLI / MCP server / skill adapter) or a
+legacy resource (Pi extension, package, (reserved) prompt template), add an
+entry to `manifest.yaml` under the matching resource group, and
 (optionally) a matching profile in `catalog/` and `profiles/`. Then validate and,
 if you want it installed, `install.sh`.
+
+> Capability-first: prefer declaring a **capability** (`capabilities:`) whose
+> `body` points at a CLI and/or MCP record. Skills are adapters, never the
+> source of truth. See `docs/capabilities.md`.
 
 ## Steps
 
 1. **Pick the group.** Go to the right list in `manifest.yaml`:
-   `resources.skills`, `resources.mcp`, `resources.extensions`,
+   `resources.clis`, `resources.skills`, `resources.mcp`, `resources.extensions`,
    `resources.packages`, `resources.prompts` (reserved), or
-   `resources.themes` (reserved). The resource's `kind` must equal the group.
+   `resources.themes` (reserved). The resource's `kind` must equal the group
+   (`clis` → `kind: cli`).
 
 2. **Choose a scope.** `global` if it applies everywhere; `project` + `projects`
    list if it only applies to specific repos.
@@ -83,6 +89,73 @@ if you want it installed, `install.sh`.
    `./scripts/install.sh global --apply` or
    `./scripts/install.sh project <name> --apply`.
 
+## Capabilities
+
+A capability entry lives under `capabilities:` (keyed by id, key == `id`):
+
+```yaml
+capabilities:
+  my-cap:
+    id: my-cap
+    name: My capability
+    description: ...
+    body:
+      clis: [my-cli]          # optional, ids in resources.clis
+      mcp: [my-mcp]           # optional, ids in resources.mcp
+    adapters:
+      skills:                 # optional, ids in resources.skills
+        - id: my-skill
+          adapter_of: my-cap
+```
+
+Rules:
+
+- Every id referenced (cli / mcp / skill) must already exist in its group —
+  `validate.sh` fails otherwise.
+- **One capability, one body.** Do not register the same tool twice (e.g. a
+  separate skill record carrying its own `resolution.version` when a `cli`
+  record already owns the version).
+- Binding a capability to a harness goes in `harnesses.<id>.bindings`, not by
+  editing the capability. Unbound means unbound — see
+  `docs/migration-pi-centric.md`.
+
+## CLIs
+
+The capability body's version record. Minimal example:
+
+```yaml
+- id: my-cli
+  name: my-cli
+  kind: cli
+  scope: global
+  description: CLI that powers my-cap
+  source:
+    type: npm            # npm | manual
+    package: my-cli
+    ref: 1.2.3
+  resolution:
+    version: 1.2.3
+    commit: ''
+    checked_at: 2026-10-02
+  update:
+    policy: weekly
+    channel: stable
+  security:
+    trust: review
+    executable: true
+    review_required: true
+  install:
+    method: npm          # npm | manual
+    command: npm i -g my-cli
+    binary: my-cli
+  capability: my-cap
+  tags: [tool]
+```
+
+`source.type: manual` means the toolbox only *observes* the version (there is
+no upstream probe); the user installs/updates it by hand or via the tool's own
+`upgrade` command.
+
 ## MCP servers
 
 MCP entries must declare a `runtime`. Either:
@@ -117,6 +190,8 @@ Before committing a new resource:
 - [x] `./scripts/validate.sh` → `OK`
 - [x] `./scripts/sync.sh` → `No drift`
 - [x] `./scripts/status.sh --json` → the new id appears under the right scope
+- [x] `./scripts/capabilities.sh --grid` → the capability shows up with the
+      right body/adapters (if you touched `capabilities:`)
 - [x] `./scripts/check-updates.sh --mock` runs clean
 - [x] `bash tests/run-tests.sh` → `ALL TESTS PASSED`
 - [x] If it is executable (extension/package/mcp) or security-sensitive, note

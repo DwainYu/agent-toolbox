@@ -16,7 +16,7 @@ entries:
     transport: http
     url: https://mcp.exa.ai/mcp
     summary: Web search and current-information retrieval.
-    path: ~/.pi/agent/mcp.json
+    path: ~/.agents/mcp.json
 
   - id: context7
     name: context7
@@ -26,7 +26,7 @@ entries:
     transport: http
     url: https://mcp.context7.com/mcp
     summary: Library / framework documentation lookup.
-    path: ~/.pi/agent/mcp.json
+    path: ~/.agents/mcp.json
 
   - id: searchcode
     name: searchcode
@@ -36,15 +36,20 @@ entries:
     transport: http
     url: https://api.searchcode.com/v1/mcp
     summary: Search public git repositories.
-    path: ~/.pi/agent/mcp.json
+    path: ~/.agents/mcp.json
 
   - id: codegraph
     name: codegraph
-    scope: project
+    scope: global
     managed: true
     status: managed
+    capability: code-intelligence
     transport: stdio
     command: codegraph serve --mcp
-    projects: [agent-engineering-lab, tft-training-log, hengguang-ai-platform-demo, md-content-publisher]
     summary: Code navigation (call chains, blast radius) via the codegraph CLI.
-    path: <repo>/.pi/mcp.json
+    path: ~/.agents/mcp.json
+    notes: >-
+      Canonical definition lives in the tool-agnostic shared layer. Pi reads it
+      directly; CodeBuddy/Qoder/OpenCode mirror it into their native config.
+      Never written into a project's .pi/mcp.json unless --scope project is
+      passed explicitly.
