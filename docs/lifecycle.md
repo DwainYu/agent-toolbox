@@ -16,7 +16,7 @@ rollback stories.
 ```
 bsk 0.3.0          -> bsk update
 ocr 1.12.12        -> npm install -g @alibaba-group/open-code-review
-codegraph 1.6.0    -> codegraph upgrade
+codegraph 1.6.2    -> codegraph upgrade
 ```
 
 `update.sh` probes upstream (`npm view`), compares with the **live**
@@ -28,7 +28,7 @@ Report only (`./bin/agent-toolbox update`) — exit `1` when anything is pending
 ```
 Tool updates (the CLI binary itself)
   ✓ bsk                0.3.0 is current
-  ↑ codegraph          1.6.0 -> 1.7.0  (codegraph-cli)
+  ↑ codegraph          1.6.2 -> 1.7.0  (codegraph-cli)
   ✓ ocr                1.12.12 is current
 ```
 
@@ -106,8 +106,8 @@ between "the program changed" and "the graph is wrong".
 # lock.yaml — what the registry resolved (regenerated, never hand-edited)
 resources:
   codegraph-cli:   # the tool
-    requested:  {source: npm, package: '@colbymchenry/codegraph', ref: 1.6.0}
-    resolved:   {version: 1.6.0}
+    requested:  {source: npm, package: '@colbymchenry/codegraph', ref: 1.6.2}
+    resolved:   {version: 1.6.2}
   codegraph:       # the MCP wiring — pinned; version is owned by the CLI
     requested:  {source: manual}
     resolved:   {version: ''}

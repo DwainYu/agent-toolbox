@@ -28,7 +28,7 @@ export W
 # versions on update (codegraph 1.7.0 / ocr 1.13.0 — see npm-versions.json)
 make_bsk "$S" 0.3.0
 make_cli "$S" ocr 1.12.12
-make_codegraph "$S" 1.6.0
+make_codegraph "$S" 1.6.2
 make_npx "$S"
 make_npm "$S"
 export PATH="$S:$PATH"
@@ -54,7 +54,7 @@ out="$(upd --mock 2>&1)"; rc=$?
 assert_eq "$rc" "1" 'stale tools -> exit 1'
 assert_contains "$out" "Tool updates" 'tool update section'
 assert_contains "$out" "Adapter updates" 'adapter update section'
-assert_contains "$out" "1.6.0 -> 1.7.0" 'codegraph has a newer release (mock)'
+assert_contains "$out" "1.6.2 -> 1.7.0" 'codegraph has a newer release (mock)'
 assert_contains "$out" "1.12.12 -> 1.13.0" 'ocr has a newer release (mock)'
 assert_contains "$out" "incremental sync is enough" 'codegraph says no reindex needed'
 assert_not_contains "$out" "reindexRecommended=true" 'no reindex recommended'

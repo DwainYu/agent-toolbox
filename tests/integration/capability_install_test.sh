@@ -27,7 +27,7 @@ export W
 
 make_bsk "$S" 0.3.0
 make_cli "$S" ocr 1.12.12
-make_cli "$S" codegraph 1.6.0
+make_cli "$S" codegraph 1.6.2
 make_npx "$S"
 export PATH="$S:$PATH"
 

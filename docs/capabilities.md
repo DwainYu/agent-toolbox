@@ -87,7 +87,7 @@ upstream probing.
 | --- | --- | --- | --- |
 | `bsk` | `bsk` | manual (self-updating binary) | 0.3.0 |
 | `ocr` | `ocr` | npm `@alibaba-group/open-code-review` | 1.12.12 |
-| `codegraph-cli` | `codegraph` | npm `@colbymchenry/codegraph` | 1.6.0 |
+| `codegraph-cli` | `codegraph` | npm `@colbymchenry/codegraph` | 1.6.2 |
 
 Two rules keep this honest:
 

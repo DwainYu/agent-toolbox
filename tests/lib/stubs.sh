@@ -148,7 +148,7 @@ EOF
 
 # make_codegraph <bindir> [version] — CodeGraph CLI; `upgrade` bumps the version
 make_codegraph() {
-  local dir="$1" ver="${2:-1.6.0}"
+  local dir="$1" ver="${2:-1.6.2}"
   mkdir -p "$dir"
   cat > "$dir/codegraph" <<EOF
 #!/usr/bin/env bash

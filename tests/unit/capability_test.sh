@@ -22,7 +22,7 @@ export HOME="$H"   # python assertions expand paths with the same fake HOME
 
 make_cli "$STUB" bsk 0.3.0
 make_cli "$STUB" ocr 1.12.12
-make_cli "$STUB" codegraph 1.6.0
+make_cli "$STUB" codegraph 1.6.2
 export PATH="$STUB:$PATH"
 
 # prepared, healthy fake machine -------------------------------------------
@@ -136,7 +136,7 @@ assert d['healthy'] is True, 'drift alone is not an error'
 " <<<"$out" 'drift counted as warning'
 out="$(run --strict 2>&1)"; rc=$?
 assert_eq "$rc" "1" '--strict turns warnings into failure'
-printf '%s\n' "1.6.0" > "$H/.stubver/codegraph"
+printf '%s\n' "1.6.2" > "$H/.stubver/codegraph"
 
 # ---------------------------------------------------------------------------
 t_begin "doctor: unprovenance skill copy is a foreign-copy warning"

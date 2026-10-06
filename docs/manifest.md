@@ -82,8 +82,8 @@ resources:
       name: codegraph
       kind: cli
       scope: global
-      source: {type: npm, package: '@colbymchenry/codegraph', ref: 1.6.0}
-      resolution: {version: 1.6.0, commit: '', checked_at: '2026-10-04'}
+      source: {type: npm, package: '@colbymchenry/codegraph', ref: 1.6.2}
+      resolution: {version: 1.6.2, commit: '', checked_at: '2026-10-06'}
       update: {policy: weekly, channel: stable}
       security: {trust: review, executable: true, review_required: true}
       install: {method: official-cli, path: ~/.hermes/node/bin/codegraph}

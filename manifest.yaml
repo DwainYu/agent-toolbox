@@ -398,11 +398,11 @@ resources:
     source:
       type: npm
       package: '@colbymchenry/codegraph'
-      ref: 1.6.0
+      ref: 1.6.2
     resolution:
-      version: 1.6.0
+      version: 1.6.2
       commit: ''
-      checked_at: '2026-10-04'
+      checked_at: '2026-10-06'
     update:
       policy: weekly
       channel: stable
