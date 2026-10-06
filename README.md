@@ -80,6 +80,9 @@ is never a duplicated capability — the CLI/MCP bodies (`bsk`, `ocr`,
 # 2. what can do what, where — read-only
 ./bin/agent-toolbox capabilities          # per-capability adapter status
 ./bin/agent-toolbox capabilities --grid   # capability x harness matrix
+                                          # + harness lifecycle section (planned /
+                                          # installed-unverified / unsupported are
+                                          # legal states, never errors, never auto-wired)
 ./bin/agent-toolbox status                # capability view + V1 counts + drift
 ./bin/agent-toolbox doctor                # CLI / skill / MCP / adapter health
 

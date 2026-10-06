@@ -157,7 +157,16 @@ class Registry(object):
         return self.harnesses[hid]
 
     def active_harnesses(self):
-        return [h for h in self.harnesses.values() if h.get("status", "active") == "active"]
+        """Harnesses in the support matrix. 'verified' is operationally the same
+        commitment as 'active' — both participate; nothing else does."""
+        return [h for h in self.harnesses.values()
+                if h.get("status", "active") in ("active", "verified")]
+
+    def lifecycle_harnesses(self):
+        """Declared harnesses outside the matrix (planned / installed-unverified /
+        unsupported). Report-only states: never auto-wired, never an error."""
+        return [h for h in self.harnesses.values()
+                if h.get("status", "active") not in ("active", "verified")]
 
     def harness_present(self, h):
         return os.path.isdir(expand(h.get("config_root") or ""))
@@ -701,7 +710,7 @@ def cmd_matrix(reg, args):
         return EXIT_OK
 
     if args.grid:
-        active = [h for h in reg.harnesses.values() if h.get("status", "active") == "active"]
+        active = reg.active_harnesses()
         width = max([len(c) for c in reg.caps] + [len("capability")]) + 2
         head = "capability".ljust(width) + "".join(
             (h.get("name") or h["id"])[:11].ljust(13) for h in active)
@@ -727,6 +736,17 @@ def cmd_matrix(reg, args):
             print(line)
         print("")
         print("✓ healthy   ⚠ warning   ✗ missing/error   - not wired for this harness")
+        off = reg.lifecycle_harnesses()
+        if off:
+            print("")
+            print("HARNESS LIFECYCLE (declared, outside the matrix — never auto-wired, not an error)")
+            for h in sorted(off, key=lambda x: x["id"]):
+                here = "config dir present" if reg.harness_present(h) else "no config dir"
+                print("  %-12s %-22s %s" % (h["id"], h.get("status", "active"), here))
+            print("planned = official path exists, local install not required")
+            print("installed-unverified = present, capability Level 1-4 not finished")
+            print("a config dir alone never means installed, and never promotes status by itself")
+            print("verified promotes into the matrix; a pass mark is only earned by a real smoke test")
         return EXIT_OK
 
     print("CAPABILITIES")

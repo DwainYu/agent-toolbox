@@ -80,6 +80,27 @@ assert_contains "$out" "code-review" 'grid lists code-review'
 assert_contains "$out" "code-intelligence" 'grid lists code-intelligence'
 
 # ---------------------------------------------------------------------------
+t_begin "matrix --grid separates harness lifecycle states"
+out="$(cd "$WORK" && env HOME="$H" bash scripts/capabilities.sh --grid 2>&1)"; rc=$?
+assert_eq "$rc" "0" 'lifecycle grid exits 0'
+assert_contains "$out" "HARNESS LIFECYCLE" 'lifecycle section present'
+assert_contains "$out" "claude-code  planned" 'planned listed as legal state'
+assert_contains "$out" "hermes       installed-unverified" 'hermes reported installed-unverified'
+assert_true python3 -c "
+import sys
+grid = sys.stdin.read()
+matrix = grid.split('HARNESS LIFECYCLE')[0]
+for h in ('Claude Code', 'Codex', 'Gemini', 'Hermes', 'Cursor'):
+    assert h not in matrix, h
+" <<<"$out" 'no lifecycle harness gets a matrix column'
+assert_true python3 -c "
+import sys
+grid = sys.stdin.read()
+lifecycle = grid.split('HARNESS LIFECYCLE', 1)[1]
+assert '✓' not in lifecycle and '✗' not in lifecycle
+" <<<"$out" 'lifecycle section never shows ✓/✗ marks'
+
+# ---------------------------------------------------------------------------
 t_begin "doctor: healthy machine"
 out="$(run --json 2>&1)"; rc=$?
 assert_eq "$rc" "0" 'healthy doctor exits 0'

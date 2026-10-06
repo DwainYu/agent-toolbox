@@ -76,8 +76,16 @@ harnesses:
     installer_ids:
       bsk: opencode
       skills: opencode
-  # --- future harnesses: declared so the schema is proven to be extensible,
-  #     but `status: planned` -> never touched by install/doctor.
+  # --- harness lifecycle status (validate accepts all five; the matrix only
+  #     contains active + verified):
+  #       active               — in the support matrix, wiring verified on this machine
+  #       planned              — official attach path exists; a local install is NOT
+  #                              required and its absence is never an error
+  #       installed-unverified — present here, but capability Level 1-4 not finished;
+  #                              never promoted by a directory or `command -v` alone
+  #       verified             — real smoke test passed; operationally equals active
+  #       unsupported          — no usable adapter or official capability path
+  #     Only `--harness <id>` explicitly touches a harness outside the matrix.
   claude-code:
     id: claude-code
     name: Claude Code
@@ -125,7 +133,12 @@ harnesses:
   hermes:
     id: hermes
     name: Hermes
-    status: planned
+    # Installed on this machine (v0.21.5), but no adapter has passed the
+    # capability smoke test yet. Its real MCP placement is the `mcp_servers:`
+    # block inside ~/.hermes/config.yaml (YAML), not the JSON file declared
+    # below — that mcp_file is a placeholder until a hermes-specific adapter
+    # is developed. Do not promote to verified/active without Level 1-4.
+    status: installed-unverified
     config_root: ~/.hermes
     skill_dir: ~/.hermes/skills
     skill_scan_dirs:

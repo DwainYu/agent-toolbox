@@ -99,7 +99,7 @@ the MCP entry is `update.policy: pin` with a `manual` source and an empty
 | --- | --- | --- | --- |
 | `id` | string | ✔ | Must equal its key. |
 | `name` | string | ✔ | Display name. |
-| `status` | enum | ✔ | `active` (adopted) or `planned` (declared only). |
+| `status` | enum | ✔ | Lifecycle: `active` \| `planned` \| `installed-unverified` \| `verified` \| `unsupported`. Matrix membership = `active`+`verified`; the rest are legal report-only states. See [harnesses.md](harnesses.md). |
 | `config_root` | path | ✔ | e.g. `~/.codebuddy`. |
 | `skill_dir` | path | if link | Where this harness keeps its own skill entries. |
 | `skill_scan_dirs` | list<path> | | Every dir the harness loads skills from. |

@@ -47,6 +47,89 @@ out="$(cd "$BTMP" && bash scripts/validate.sh 2>&1)"; rc=$?
 assert_eq "$rc" "2" 'secret detected -> exit 2'
 assert_contains "$out" "potential secret" 'secret flagged'
 
+t_begin "validate accepts the harness lifecycle statuses"
+BTMP2="$(mktemp -d)"
+mkdir -p "$BTMP2/scripts/lib" "$BTMP2/profiles"
+cp "$WORK/scripts/lib/common.sh" "$BTMP2/scripts/lib/"
+cp "$WORK/scripts/validate.sh" "$BTMP2/scripts/"
+cat > "$BTMP2/lock.yaml" <<'EOF'
+schema_version: 1
+resources: {}
+EOF
+cat > "$BTMP2/manifest.yaml" <<'EOF'
+schema_version: 1
+harnesses:
+  h-active:
+    id: h-active
+    name: H
+    status: active
+    config_root: ~/.h
+    skill_dir: ~/.h/skills
+    skill_strategy: symlink
+    mcp_strategy: native
+    mcp_format: mcpServers
+    mcp_file: ~/.h/mcp.json
+  h-planned:
+    id: h-planned
+    name: H
+    status: planned
+    config_root: ~/.h
+    skill_dir: ~/.h/skills
+    skill_strategy: symlink
+    mcp_strategy: native
+    mcp_format: mcpServers
+    mcp_file: ~/.h/mcp.json
+  h-installed-unverified:
+    id: h-installed-unverified
+    name: H
+    status: installed-unverified
+    config_root: ~/.h
+    skill_dir: ~/.h/skills
+    skill_strategy: symlink
+    mcp_strategy: native
+    mcp_format: mcpServers
+    mcp_file: ~/.h/mcp.json
+  h-verified:
+    id: h-verified
+    name: H
+    status: verified
+    config_root: ~/.h
+    skill_dir: ~/.h/skills
+    skill_strategy: symlink
+    mcp_strategy: native
+    mcp_format: mcpServers
+    mcp_file: ~/.h/mcp.json
+  h-unsupported:
+    id: h-unsupported
+    name: H
+    status: unsupported
+    config_root: ~/.h
+    skill_dir: ~/.h/skills
+    skill_strategy: symlink
+    mcp_strategy: native
+    mcp_format: mcpServers
+    mcp_file: ~/.h/mcp.json
+EOF
+out="$(cd "$BTMP2" && bash scripts/validate.sh 2>&1)"; rc=$?
+assert_eq "$rc" "0" "all five lifecycle statuses accepted"
+
+cat >> "$BTMP2/manifest.yaml" <<'EOF'
+  h-bad:
+    id: h-bad
+    name: H
+    status: beta
+    config_root: ~/.h
+    skill_dir: ~/.h/skills
+    skill_strategy: symlink
+    mcp_strategy: native
+    mcp_format: mcpServers
+    mcp_file: ~/.h/mcp.json
+EOF
+out="$(cd "$BTMP2" && bash scripts/validate.sh 2>&1)"; rc=$?
+assert_eq "$rc" "2" 'unknown status rejected'
+assert_contains "$out" "invalid status" 'invalid status flagged'
+rm -rf "$BTMP2"
+
 t_begin "validate emits JSON"
 out="$(cd "$WORK" && bash scripts/validate.sh --json 2>&1)"
 assert_true python3 -c "import sys,json; d=json.load(sys.stdin); assert d['valid'] is True" <<<"$out" 'valid:true in json'

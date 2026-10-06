@@ -13,7 +13,7 @@ harnesses:
   codebuddy:
     id: codebuddy                # must equal its key
     name: CodeBuddy
-    status: active               # active | planned
+    status: active               # active | planned | installed-unverified | verified | unsupported
     config_root: ~/.codebuddy
     skill_dir: ~/.codebuddy/skills
     skill_scan_dirs: [~/.codebuddy/skills]
@@ -37,12 +37,37 @@ harnesses:
 | Claude Code | planned | `~/.claude` | `~/.claude/skills` | — | `~/.claude.json` | `mcpServers` |
 | Codex | planned | `~/.codex` | `~/.agents/skills` | ✔ `~/.agents/skills` | `~/.agents/mcp.json` | `mcpServers` |
 | Gemini CLI | planned | `~/.gemini` | `~/.gemini/skills` | — | `~/.gemini/settings.json` | `mcpServers` |
-| Hermes | planned | `~/.hermes` | `~/.hermes/skills` | — | `~/.hermes/mcp.json` | `mcpServers` |
+| Hermes | installed-unverified | `~/.hermes` | `~/.hermes/skills` | — | `~/.hermes/config.yaml` (`mcp_servers:`) | YAML-embedded |
 | Cursor | planned | `~/.cursor` | `~/.cursor/skills` | — | `~/.cursor/mcp.json` | `mcpServers` |
 
 `status: active` = adopted and safe to touch by default.
-`status: planned` = declared to prove the schema extends; **only ever written
-when you name it explicitly** with `--harness <id>`.
+`status: planned` = "official support exists, not installed here" is a legal,
+stable state — declared to prove the schema extends; **only ever written
+when you name it explicitly** with `--harness <id>`. Never a local install
+requirement, never an error.
+
+## Harness lifecycle
+
+| status | meaning | in matrix | auto-touched |
+| --- | --- | --- | --- |
+| `active` | wired on this machine and verified by doctor | yes | yes |
+| `planned` | official attach path exists; local install not required | no | no |
+| `installed-unverified` | present here; capability Level 1-4 smoke test not finished | no | no |
+| `verified` | real smoke test passed; operationally equals `active` | yes | yes |
+| `unsupported` | no usable adapter or official capability path | no | no |
+
+Promotion rules:
+- A harness enters `installed-unverified` only through a human audit that
+  confirms the CLI actually runs — a config directory appearing or
+  `command -v` succeeding never promotes status by itself.
+- Only a completed Level 1-4 smoke test (CLI reachable, skill attachable,
+  MCP attachable, real capability call works) earns `verified`, and with it
+  the right to a ✓ in the grid.
+- Demotion to `planned`/`unsupported` is done by editing `manifest.yaml`,
+  never implied by uninstalling software.
+- The machine lives in mainland China; nothing in this toolbox may install,
+  download, or reconfigure a harness as a side effect of
+  `doctor` / `validate` / `status` / `capabilities` / `update`.
 
 ## `skill_scan_dirs` vs `skill_dir`
 

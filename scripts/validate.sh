@@ -73,7 +73,7 @@ allowed_skill_strategies = {"shared", "symlink", "installer"}
 allowed_mcp_strategies = {"shared", "native", "profile"}
 allowed_mcp_formats = {"mcpServers", "opencode-mcp"}
 allowed_mcp_definitions = {"shared", "profile-global"}
-allowed_harness_status = {"active", "planned"}
+allowed_harness_status = {"active", "planned", "installed-unverified", "verified", "unsupported"}
 allowed_transports = {"stdio", "http", "sse"}
 skill_re = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 
