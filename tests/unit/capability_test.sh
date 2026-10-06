@@ -35,6 +35,7 @@ mkdir -p "$H/.pi/agent" "$H/.codebuddy" "$H/.qoder-cn" "$H/.config/opencode"
 mkdir -p "$H/.pi/agent/extensions"
 : > "$H/.pi/agent/extensions/rtk.ts"
 cp "$WORK/profiles/shared/mcp.json" "$H/.agents/mcp.json"
+mirror_hermes_config
 
 run() { (cd "$WORK" && env HOME="$H" PATH="$PATH" bash scripts/doctor.sh "$@"); }
 
@@ -51,6 +52,7 @@ assert {'exa','context7','searchcode'} <= caps, caps
 h = {x['id']: x['status'] for x in d['harnesses']}
 for k in ('pi','codebuddy','qoder-cn','opencode'): assert h.get(k) == 'active', h
 assert h.get('claude-code') == 'planned', h
+assert h.get('hermes') == 'verified', h
 for c in d['capabilities']:
     assert 'cli' in c and 'skills_declared' in c and 'harnesses' in c, c['id']
 " <<<"$out" 'capability + harness registry is complete'
@@ -85,14 +87,15 @@ out="$(cd "$WORK" && env HOME="$H" bash scripts/capabilities.sh --grid 2>&1)"; r
 assert_eq "$rc" "0" 'lifecycle grid exits 0'
 assert_contains "$out" "HARNESS LIFECYCLE" 'lifecycle section present'
 assert_contains "$out" "claude-code  planned" 'planned listed as legal state'
-assert_contains "$out" "hermes       installed-unverified" 'hermes reported installed-unverified'
+assert_not_contains "$out" "hermes" 'hermes promoted out of the lifecycle section'
 assert_true python3 -c "
 import sys
 grid = sys.stdin.read()
-matrix = grid.split('HARNESS LIFECYCLE')[0]
-for h in ('Claude Code', 'Codex', 'Gemini', 'Hermes', 'Cursor'):
+matrix, _, lifecycle = grid.partition('HARNESS LIFECYCLE')
+assert 'Hermes' in matrix, 'hermes has a matrix column after promotion'
+for h in ('Claude Code', 'Codex', 'Gemini', 'Cursor'):
     assert h not in matrix, h
-" <<<"$out" 'no lifecycle harness gets a matrix column'
+" <<<"$out" 'only verified harnesses get a matrix column'
 assert_true python3 -c "
 import sys
 grid = sys.stdin.read()

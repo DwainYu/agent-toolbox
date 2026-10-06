@@ -4,9 +4,10 @@ A **harness** is an agent runtime that consumes capabilities. The harness
 registry (`manifest.yaml` → `harnesses:`) describes *where a harness keeps its
 config* and *how it attaches things by default* — never what a capability is.
 
-Pi is **not** the capability owner — it is one harness among the active ones
-(`pi`, `codebuddy`, `qoder-cn`, `opencode`). Every body (CLI, MCP definition,
-shared skill) lives in the tool-agnostic layer; Pi merely scans and reads it.
+Pi is **not** the capability owner — it is one harness among the matrix ones
+(`pi`, `codebuddy`, `qoder-cn`, `opencode`, plus `hermes`, promoted to
+`verified`). Every body (CLI, MCP definition, shared skill) lives in the
+tool-agnostic layer; Pi merely scans and reads it.
 
 ```yaml
 harnesses:
@@ -19,7 +20,7 @@ harnesses:
     skill_scan_dirs: [~/.codebuddy/skills]
     skill_strategy: symlink      # default for skills
     mcp_file: ~/.codebuddy/mcp.json
-    mcp_format: mcpServers       # mcpServers | opencode-mcp
+    mcp_format: mcpServers       # mcpServers | opencode-mcp | hermes-config-yaml
     mcp_strategy: native         # default for MCP
     installer_ids:               # this harness's id for each official installer
       bsk: CodeBuddy
@@ -37,7 +38,7 @@ harnesses:
 | Claude Code | planned | `~/.claude` | `~/.claude/skills` | — | `~/.claude.json` | `mcpServers` |
 | Codex | planned | `~/.codex` | `~/.agents/skills` | ✔ `~/.agents/skills` | `~/.agents/mcp.json` | `mcpServers` |
 | Gemini CLI | planned | `~/.gemini` | `~/.gemini/skills` | — | `~/.gemini/settings.json` | `mcpServers` |
-| Hermes | installed-unverified | `~/.hermes` | `~/.hermes/skills` | — | `~/.hermes/config.yaml` (`mcp_servers:`) | YAML-embedded |
+| Hermes | verified | `~/.hermes` | `~/.hermes/skills` | — | `~/.hermes/config.yaml` (`mcp_servers:`) | `hermes-config-yaml` |
 | Cursor | planned | `~/.cursor` | `~/.cursor/skills` | — | `~/.cursor/mcp.json` | `mcpServers` |
 
 `status: active` = adopted and safe to touch by default.
@@ -88,6 +89,12 @@ so they get links.
 | CodeBuddy | `symlink` | `native` | own skill dir; native `mcp.json` |
 | Qoder CN | `symlink` | `native` | own skill dir; MCP lives inside `settings.json` |
 | OpenCode | `symlink` | `native` | own skill dir (plus shared scan); `opencode.jsonc` |
+| Hermes | `symlink` | `native` | own skill dir; MCP is one YAML block inside `~/.hermes/config.yaml` |
+
+Hermes' `native` strategy is **one-way**: `~/.agents/mcp.json` is the source of
+truth and the adapter mirrors entries into the `mcp_servers:` block, add-only.
+The adapter never writes back to the shared JSON and never rewrites anything
+outside that block — a Hermes adapter is not an MCP source.
 
 A capability can override either per harness (`capabilities.<cap>.harnesses.<id>`),
 which is how `browser` uses the official installer on CodeBuddy but a plain

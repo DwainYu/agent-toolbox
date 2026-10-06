@@ -76,6 +76,11 @@ Read as:
 - **CodeBuddy + CodeGraph** → CodeBuddy → `code-intelligence` MCP adapter →
   shared `~/.agents/mcp.json` mirrored into `~/.codebuddy/mcp.json` →
   `codegraph serve --mcp`
+- **Hermes + CodeGraph** → Hermes → `code-intelligence` MCP adapter →
+  shared `~/.agents/mcp.json` mirrored into the `mcp_servers:` block of
+  `~/.hermes/config.yaml` (one-way) → `codegraph serve --mcp`. Hermes carries
+  MCP capabilities only — `browser` and `code-review` stay unwired, so their
+  grid cells read `-`.
 
 ## CLI: the capability body
 

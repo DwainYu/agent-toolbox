@@ -25,6 +25,30 @@ harness_skill_dir() {
   esac
 }
 
+# mirror_hermes_config — fake ~/.hermes/config.yaml already in sync with the
+# shared MCP source. Hermes is a matrix harness, so every "healthy machine"
+# fixture has to show it wired, exactly like pi/codebuddy/qoder-cn/opencode.
+mirror_hermes_config() {
+  [ -f "$HOME/.agents/mcp.json" ] || return 0
+  ATB_FAKE_HOME="$HOME" python3 - <<'PY'
+import json, os, yaml
+home = os.environ["ATB_FAKE_HOME"]
+servers = json.load(open(os.path.join(home, ".agents", "mcp.json"))).get("mcpServers") or {}
+out = {}
+for name, c in servers.items():
+    if c.get("url"):
+        out[name] = {"url": c["url"], "enabled": True}
+    else:
+        out[name] = {"command": c.get("command", ""),
+                    "args": list(c.get("args") or []), "enabled": True}
+os.makedirs(os.path.join(home, ".hermes"), exist_ok=True)
+with open(os.path.join(home, ".hermes", "config.yaml"), "w") as fh:
+    fh.write("# fake hermes user config — mcp_servers mirror only\n")
+    fh.write(yaml.safe_dump({"mcp_servers": out}, default_flow_style=False,
+                            sort_keys=False))
+PY
+}
+
 # make_cli <bindir> <name> <version>
 # A CLI that answers `--version` and logs every call to $HOME/.stubver/<name>.calls
 make_cli() {

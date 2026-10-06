@@ -133,19 +133,20 @@ harnesses:
   hermes:
     id: hermes
     name: Hermes
-    # Installed on this machine (v0.21.5), but no adapter has passed the
-    # capability smoke test yet. Its real MCP placement is the `mcp_servers:`
-    # block inside ~/.hermes/config.yaml (YAML), not the JSON file declared
-    # below — that mcp_file is a placeholder until a hermes-specific adapter
-    # is developed. Do not promote to verified/active without Level 1-4.
-    status: installed-unverified
+    # Installed on this machine (v0.21.5). Hermes keeps MCP servers embedded
+    # in ~/.hermes/config.yaml under `mcp_servers:` (YAML); the
+    # hermes-config-yaml adapter mirrors the shared JSON source into that one
+    # block, add-only, never writing back. Promoted to verified after the real
+    # MCP smoke test: config parsed, all four servers launched through the
+    # hermes client, tools discovered, and one real codegraph_explore call.
+    status: verified
     config_root: ~/.hermes
     skill_dir: ~/.hermes/skills
     skill_scan_dirs:
     - ~/.hermes/skills
     skill_strategy: symlink
-    mcp_file: ~/.hermes/mcp.json
-    mcp_format: mcpServers
+    mcp_file: ~/.hermes/config.yaml
+    mcp_format: hermes-config-yaml
     mcp_strategy: native
     installer_ids:
       bsk: hermes
@@ -279,6 +280,8 @@ capabilities:
         mcp_strategy: native
       opencode:
         mcp_strategy: native
+      hermes:
+        mcp_strategy: native
   # --- MCP-only capabilities hosted by third parties. Their canonical
   #     definitions live in the tool-agnostic shared layer
   #     (profiles/shared/mcp.json -> ~/.agents/mcp.json), the single MCP
@@ -302,6 +305,8 @@ capabilities:
         mcp_strategy: native
       opencode:
         mcp_strategy: native
+      hermes:
+        mcp_strategy: native
   context7:
     id: context7
     name: Context7
@@ -321,6 +326,8 @@ capabilities:
         mcp_strategy: native
       opencode:
         mcp_strategy: native
+      hermes:
+        mcp_strategy: native
   searchcode:
     id: searchcode
     name: Searchcode
@@ -339,6 +346,8 @@ capabilities:
       qoder-cn:
         mcp_strategy: native
       opencode:
+        mcp_strategy: native
+      hermes:
         mcp_strategy: native
 # -----------------------------------------------------------------------------
 # resources — single source of truth for sources and versions.

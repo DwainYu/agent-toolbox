@@ -319,6 +319,84 @@ def mcp_launch_equal(expected, actual, fmt):
             and list(actual.get("args") or []) == list(expected.get("args") or []))
 
 
+# --- hermes embedded-YAML MCP adapter --------------------------------------
+# Hermes keeps MCP servers inside ~/.hermes/config.yaml under `mcp_servers:`.
+# Writes are surgical text insertions into that one block: every other line
+# (comments, user keys, custom servers) stays byte-exact. This adapter never
+# writes back to the shared JSON source.
+
+def hermes_servers_view(path):
+    """Parse the mcp_servers mapping of a hermes YAML config.
+
+    Returns (servers, error). Raises nothing: callers render the error into
+    the plan. Duplicate keys are rejected because PyYAML collapses them
+    silently and an add-only merge could then overwrite one of them.
+    """
+    try:
+        with open(path) as fh:
+            raw = fh.read()
+    except OSError as exc:
+        return None, "cannot read %s: %s" % (path, exc)
+    try:
+        data = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        return None, "%s does not parse: %s" % (path, exc)
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        return None, "%s top level is not a mapping" % path
+    servers = data.get("mcp_servers")
+    if servers is None:
+        return {}, None
+    if not isinstance(servers, dict):
+        return None, "%s: mcp_servers is not a mapping" % path
+    block = re.search(r"^mcp_servers:\n(.*?)(?=^[^\s#]|\Z)", raw, re.M | re.S)
+    if block:
+        names = re.findall(r"^  ([A-Za-z0-9_.-]+):", block.group(1), re.M)
+        dups = sorted({n for n in names if names.count(n) > 1})
+        if dups:
+            return None, "%s: duplicate mcp_servers keys %s" % (path, ", ".join(dups))
+    return servers, None
+
+
+def hermes_insert_server(path, server, entry):
+    """Return file content with one add-only server appended inside the
+    top-level mcp_servers: block (created at EOF when absent)."""
+    raw = ""
+    if os.path.exists(path):
+        with open(path) as fh:
+            raw = fh.read()
+    block = yaml.safe_dump({server: entry}, default_flow_style=False,
+                           sort_keys=False).rstrip("\n")
+    block = "\n".join("  " + ln if ln else ln for ln in block.split("\n"))
+    lines = raw.split("\n")
+    top = None
+    for i, ln in enumerate(lines):
+        if re.match(r"^mcp_servers:\s*(#.*)?$", ln):
+            top = i
+            break
+    if top is None:
+        sep = "" if (raw == "" or raw.endswith("\n")) else "\n"
+        new = raw + sep + "mcp_servers:\n" + block + "\n"
+    else:
+        end, insert_at = top + 1, top + 1
+        while end < len(lines):
+            ln = lines[end]
+            if ln.strip() == "":
+                end += 1
+            elif ln.startswith((" ", "\t")):
+                end += 1
+                insert_at = end
+            else:
+                break
+        lines[insert_at:insert_at] = block.split("\n")
+        new = "\n".join(lines)
+    check = yaml.safe_load(new)
+    if ((check or {}).get("mcp_servers") or {}).get(server) != entry:
+        raise RuntimeError("generated YAML does not round-trip for '%s'" % server)
+    return new
+
+
 def mcp_state(reg, cap, h, strategy):
     """Read-only MCP adapter state for (capability, harness)."""
     cap_mcp = cap.get("mcp") or {}
@@ -348,14 +426,21 @@ def mcp_state(reg, cap, h, strategy):
     if not os.path.exists(target):
         out.update(state="absent", status=MISSING, detail="target config not present")
         return out
-    try:
-        data = load_json(target)
-    except Exception as exc:
-        out.update(state="unparsable", status=ERROR,
-                   detail="%s does not parse: %s" % (target, exc))
-        return out
     fmt = h.get("mcp_format") or "mcpServers"
-    actual = (data.get(MCP_KEY[fmt]) or {}).get(server)
+    if fmt == "hermes-config-yaml":
+        servers, err = hermes_servers_view(target)
+        if err:
+            out.update(state="unparsable", status=ERROR, detail=err)
+            return out
+        actual = servers.get(server)
+    else:
+        try:
+            data = load_json(target)
+        except Exception as exc:
+            out.update(state="unparsable", status=ERROR,
+                       detail="%s does not parse: %s" % (target, exc))
+            return out
+        actual = (data.get(MCP_KEY[fmt]) or {}).get(server)
     if actual is None:
         out.update(state="absent", status=MISSING, detail="server not in %s" % target)
         return out
@@ -446,7 +531,11 @@ def resolve(reg, cap_id, harness_ids):
                                             entry["mcp"]["detail"]))
 
         out["harnesses"].append(entry)
-        out["warnings"].extend(["%s: %s" % (hid, w) for w in entry["warnings"]])
+        # Harnesses outside the support matrix (planned / installed-unverified /
+        # unsupported) are report-only: their findings never count as the
+        # capability's health, so update/doctor stay quiet about them.
+        if h.get("status", "active") in ("active", "verified"):
+            out["warnings"].extend(["%s: %s" % (hid, w) for w in entry["warnings"]])
 
     if cli_info and cli_info["status"] != OK:
         out["warnings"].append("cli: %s" % (cli_info["detail"] or cli_info["status"]))
@@ -616,6 +705,46 @@ def exec_action(reg, action, apply=False):
     return False, "unknown action kind: %s" % kind
 
 
+def write_hermes_mcp(target, server, canonical):
+    """Add-only mirror of one shared server into the hermes YAML config.
+
+    Never touches the shared JSON source; never rewrites keys outside
+    mcp_servers; invalid YAML or a drifted server means no write at all.
+    """
+    expected = to_format(canonical, "hermes-config-yaml")
+    servers = {}
+    if os.path.exists(target):
+        found, err = hermes_servers_view(target)
+        if err:
+            return False, "target does not parse (refusing to write): %s" % err
+        servers = found
+        if server in servers:
+            if (servers[server] == expected
+                    or mcp_launch_equal(expected, servers[server], "hermes-config-yaml")):
+                return True, "already present in %s" % target
+            return False, ("drift: '%s' already defined differently in %s; "
+                           "add-only merge refuses to overwrite" % (server, target))
+    try:
+        new_content = hermes_insert_server(target, server, expected)
+    except Exception as exc:
+        return False, "refusing to write: %s" % exc
+    backup = backup_file(target)
+    try:
+        os.makedirs(os.path.dirname(target) or ".", exist_ok=True)
+        with open(target, "w") as fh:
+            fh.write(new_content)
+    except OSError as exc:
+        return False, "write failed: %s" % exc
+    check, err = hermes_servers_view(target)
+    if err or (check or {}).get(server) != expected:
+        if backup:
+            shutil.copy2(backup, target)
+        return False, "post-write verification failed, rolled back%s" % (
+            " (backup %s)" % backup if backup else "")
+    return True, "merged %s into %s%s" % (server, target,
+                                          " (backup %s)" % backup if backup else "")
+
+
 def write_mcp(reg, action):
     """Merge one MCP server into a target config, add-only, with backup."""
     cap = reg.cap(action["capability"])
@@ -641,6 +770,9 @@ def write_mcp(reg, action):
         return False, "canonical definition unreadable: %s" % exc
     if server not in (profile.get("mcpServers") or {}):
         return False, "server '%s' missing from %s" % (server, profile_path)
+
+    if fmt == "hermes-config-yaml":
+        return write_hermes_mcp(target, server, profile["mcpServers"][server])
 
     target_data = {}
     if os.path.exists(target):
@@ -799,23 +931,28 @@ def cmd_matrix(reg, args):
 # ---------------------------------------------------------------------------
 # install
 # ---------------------------------------------------------------------------
-def resolve_harness_ids(reg, args):
+def resolve_harness_ids(reg, args, cap_id=None):
     """Target harnesses for an install.
 
-    Default and --all-harnesses both mean "every ACTIVE harness". A harness
-    still marked `status: planned` is only ever touched by naming it explicitly
-    with --harness <id> (declare it active in manifest.yaml first in practice).
+    Default and --all-harnesses both mean "every matrix harness this capability
+    declares an adapter for". A harness still marked `status: planned` (or a
+    capability a harness is not wired to) is only ever touched by naming it
+    explicitly with --harness <id>.
     """
     if args.harness:
         for hid in args.harness:
             reg.harness(hid)  # raises on unknown id
         return args.harness
-    return [h["id"] for h in reg.active_harnesses()]
+    ids = [h["id"] for h in reg.active_harnesses()]
+    if cap_id is not None:
+        wired = (reg.cap(cap_id).get("harnesses") or {})
+        ids = [hid for hid in ids if hid in wired]
+    return ids
 
 
 def cmd_install(reg, args):
     cap = reg.cap(args.capability)
-    hids = resolve_harness_ids(reg, args)
+    hids = resolve_harness_ids(reg, args, cap_id=args.capability)
     if not hids:
         print("ERROR: no target harness (use --harness <id> or --all-harnesses)",
               file=sys.stderr)
@@ -917,6 +1054,16 @@ def cmd_doctor(reg, args):
             detail = c["detail"] or ("%s (%s)" % (c["version"] or "?", c["path"] or "no path"))
             add(section, "cli %s" % c["command"], c["status"], detail)
         for e in res["harnesses"]:
+            if e["status"] not in ("active", "verified"):
+                # lifecycle harness: observe only when it actually exists here
+                if not e["present"]:
+                    continue
+                m = e.get("mcp")
+                if m:
+                    add(section, "mcp %s @ %s (lifecycle)" % (m["server_name"], e["id"]),
+                        OK if m["status"] == OK else MISSING,
+                        m["detail"] or m["state"])
+                continue
             if not e["present"]:
                 add(section, "harness %s" % e["id"], WARN,
                     "config root not present: %s" % e["config_root"])

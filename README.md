@@ -11,10 +11,10 @@ copies a tool twice and never clobbers your config.
 
 ```
              Agent Harnesses
-      ┌──────┬──────────┬───────┬──────────┐
-      │  Pi  │ CodeBuddy│ Qoder │ OpenCode │
-      └──┬───┴────┬─────┴───┬───┴────┬─────┘
-         └────────┴─────────┴────────┘
+      ┌──────┬──────────┬───────┬──────────┬────────┐
+      │  Pi  │ CodeBuddy│ Qoder │ OpenCode │ Hermes │
+      └──┬───┴────┬─────┴───┬───┴────┬─────┴───┬────┘
+         └────────┴─────────┴────────┴─────────┘
                      │
                 Adapters           skill link / official installer
                      │             mcp mirror / shared definition
@@ -55,7 +55,10 @@ copy, one shared MCP definition — many harness adapters.**
         ├── Pi            reads it directly
         ├── CodeBuddy     mirrored into ~/.codebuddy/mcp.json
         ├── Qoder CN      mirrored into ~/.qoder-cn/settings.json
-        └── OpenCode      mirrored into ~/.config/opencode/opencode.jsonc
+        ├── OpenCode      mirrored into ~/.config/opencode/opencode.jsonc
+        └── Hermes        mirrored into the `mcp_servers:` block of
+                          ~/.hermes/config.yaml — one-way; a Hermes adapter
+                          is never an MCP source
 ```
 
 A skill adapter in a harness directory is in exactly one of six states —

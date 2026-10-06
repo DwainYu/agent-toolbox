@@ -98,6 +98,7 @@ independent sources again — edit `profiles/shared/mcp.json`, re-run
 | --- | --- | --- |
 | `mcpServers` | `mcpServers` | `{"command": "codegraph", "args": ["serve","--mcp"], "lifecycle": "eager"}` |
 | `opencode-mcp` | `mcp` | `{"type":"local","command":["codegraph","serve","--mcp"],"enabled":true}` |
+| `hermes-config-yaml` | `mcp_servers` (YAML) | `{"command":"codegraph","args":["serve","--mcp"],"enabled":true}` or `{"url":"https://mcp.exa.ai/mcp","enabled":true}` |
 
 Mirrored targets today:
 
@@ -106,7 +107,25 @@ Mirrored targets today:
 ~/.codebuddy/mcp.json                     mcpServers   (native mirror)
 ~/.qoder-cn/settings.json                 mcpServers   (inside settings.json; native mirror)
 ~/.config/opencode/opencode.jsonc         opencode-mcp (JSONC tolerated; native mirror)
+~/.hermes/config.yaml                     hermes-config-yaml (one block inside the user's YAML; native mirror)
 ```
+
+### The Hermes YAML adapter
+
+Hermes keeps MCP servers embedded in its user config, so the adapter is
+text-surgical rather than a YAML round-trip:
+
+- Parse with `safe_load` first; **invalid YAML → error, no write, no backup**.
+- Duplicate `mcp_servers:` keys are refused before anything is touched (PyYAML
+  would silently keep the last one).
+- A new server is inserted into the `mcp_servers:` block by line surgery, so
+  comments, key order, anchors and every key outside the block survive
+  byte-exact. A missing block is appended at EOF; an empty one is filled.
+- The mirror is strictly **one-way**: `~/.agents/mcp.json` is the source, and
+  nothing in this repo ever writes back to it from Hermes state. A Hermes
+  adapter is not an MCP source.
+- Post-write the file is re-parsed and re-checked; on any mismatch the backup
+  is restored.
 
 ### Equivalent vs equal
 

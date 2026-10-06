@@ -24,7 +24,8 @@ import shutil
 import sys
 import time
 
-MCP_KEY = {"mcpServers": "mcpServers", "opencode-mcp": "mcp"}
+MCP_KEY = {"mcpServers": "mcpServers", "opencode-mcp": "mcp",
+           "hermes-config-yaml": "mcp_servers"}
 
 
 def strip_json_comments(text):
@@ -80,6 +81,10 @@ def backup_file(path):
         return None
     ts = time.strftime("%Y%m%d-%H%M%S")
     bak = f"{path}.atb-backup.{ts}"
+    n = 1
+    while os.path.exists(bak):
+        bak = f"{path}.atb-backup.{ts}.{n}"
+        n += 1
     shutil.copy2(path, bak)
     return bak
 
@@ -94,6 +99,12 @@ def to_format(canonical, fmt):
         cmd = canonical.get("command", "")
         args = list(canonical.get("args") or [])
         return {"type": "local", "command": [cmd] + args, "enabled": True}
+    if fmt == "hermes-config-yaml":
+        if canonical.get("url"):
+            return {"url": canonical["url"], "enabled": True}
+        return {"command": canonical.get("command", ""),
+                "args": list(canonical.get("args") or []),
+                "enabled": True}
     raise ValueError(f"unknown mcp format: {fmt}")
 
 

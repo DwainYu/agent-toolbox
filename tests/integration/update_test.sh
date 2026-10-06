@@ -41,6 +41,7 @@ done
 mkdir -p "$H/.pi/agent/extensions" "$H/.codebuddy" "$H/.qoder-cn" "$H/.config/opencode"
 : > "$H/.pi/agent/extensions/rtk.ts"
 cp "$W/profiles/shared/mcp.json" "$H/.agents/mcp.json"
+mirror_hermes_config
 # one indexed project, so the CodeGraph index section is exercised
 mkdir -p "$H/projects/agent-engineering-lab/.codegraph"
 

@@ -58,9 +58,12 @@ healthy, `foreign-copy` / `broken` are warnings, `absent` is an action to take.
 
 The canonical definition lives in `profiles/shared/mcp.json` (repo) →
 `~/.agents/mcp.json` (machine). Changing it and re-running the adapter install
-mirrors it into each harness's native file, add-only, with a backup.
+mirrors it into each harness's native file, add-only, with a backup — including
+the Hermes `mcp_servers:` YAML block (one-way; the adapter never writes back).
 
-Changing *what the server serves* is a tool update (A), not this.
+Changing *what the server serves* is a tool update (A), not this. The **harness
+itself is never a managed tool**: `update` has no hermes entry and must not
+upgrade, reinstall or reconfigure any harness as a side effect.
 
 ## D. CodeGraph index — deliberately separate
 

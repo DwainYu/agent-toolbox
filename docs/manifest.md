@@ -105,7 +105,7 @@ the MCP entry is `update.policy: pin` with a `manual` source and an empty
 | `skill_scan_dirs` | list<path> | | Every dir the harness loads skills from. |
 | `skill_strategy` | enum | ✔ | `shared \| symlink \| installer`. |
 | `mcp_file` | path | if native | Target config file for MCP mirroring. |
-| `mcp_format` | enum | ✔ | `mcpServers \| opencode-mcp`. |
+| `mcp_format` | enum | ✔ | `mcpServers \| opencode-mcp \| hermes-config-yaml`. |
 | `mcp_strategy` | enum | ✔ | `shared \| native \| profile`. |
 | `installer_ids` | map | | Installer key → this harness's id (`bsk: CodeBuddy`). |
 
